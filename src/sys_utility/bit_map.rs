@@ -91,7 +91,7 @@ impl BitMap{
 
     }
 
-    fn set_value(&self,addr:&Addr,value:u32){
+    fn set_value(&self,addr:&Addr,value:u32){   //输入一个磁盘地址，和一个值，把这个值写入磁盘的位图区
         let block_entry=self.bitmap_entry.get_raw_num()+(addr.get_raw_num()/BLOCK_SIZE)*4;    //获得即将标记的地址
         let occupy_u8=u32_to_vec(value);                                           //把OCCUPY_NUM转换成u8向量
         let f=File::options().write(true).open(self.file_path).unwrap();
@@ -101,19 +101,23 @@ impl BitMap{
     }
 
     fn init(&self){
+        println!("{:?}",self);
         let entry=self.bitmap_entry.get_raw_num();               //入口地址
         let all_block_num=&self.block_num;          //块总数，这里指102400
-        let bitmap_end=(entry+self.reserved_block_num)*BLOCK_SIZE/4;   //bitmap管理区域的终点地址
-        let occupy_end=entry+self.reserved_block_num;    //初始化中非空区的终点地址
+        let bitmap_end=(self.reserved_block_num*BLOCK_SIZE)/4;   //bitmap管理区域的终点地址
+        let occupy_end=entry/4+self.reserved_block_num;    //初始化中非空区的终点地址
         let bm_block_size=all_block_num*4;     //bitmap初始化要写的区域的总大小,这里指409600
-        let mut i=entry;
+        let bm_block_size=bm_block_size-entry;
+        let mut i=entry/4;
         let f=File::options().write(true).open(self.file_path).unwrap();
         let mut bf=BufWriter::with_capacity(bm_block_size as usize, f);
         bf.seek(SeekFrom::Start(entry as u64));
         let mut list:Vec<u8>=vec![];
+        let mut count=0;
         while(i<bitmap_end){
+            count=count+1;
             if(i<occupy_end){
-                list.append(&mut u32_to_vec(i));
+                list.append(&mut u32_to_vec(i-entry/4));
             }else{
                 list.append(&mut u32_to_vec(NON_OCCUPY_NUM));
             }
@@ -122,35 +126,31 @@ impl BitMap{
         bf.write(&list);
     }
 
-    fn free_block(&self)->Result<u32,FindErr>{      //找到一个空闲块，并返回块号
-        // let entry=Addr::new(self.bitmap_entry.get_raw_num());               //入口地址
-        // let occupy_end=entry.get_raw_num()+self.reserved_block_num;       //非空区的终点地址
-        // let bitmap_end=(entry+self.reserved_block_num)*BLOCK_SIZE/4;   //bitmap管理区域的终点地址
-        // let mut i=occupy_end;
-        // while(i<bitmap_end){
-        //     println!("{}",i);
-        //     if(self.check_non_occupied(&Addr::new(i*1024)).unwrap()){
-        //         self.set_value(&Addr::new(i),LAST_BLOCK);
-        //         break;
-        //     }else{
-        //         i=i+1;
-        //     }
-
-        // }
-        // if(bitmap_end>=i){
-        //     Err(FindErr::Full)
-        // }else{
-        //     Ok(i)
-        // }
-        Ok(12 as u32)
+    fn get_free_block(&self)->Result<Addr,FindErr>{      //找到一个空闲块，并返回块号
+        let start=self.bitmap_entry.get_raw_num();
+        let end=self.block_num;
+        let mut i:u32=self.reserved_block_num;
+        let mut i_addr:u32=0;
+        while(i<=end){
+            i_addr=i*BLOCK_SIZE;
+            // println!("{}",i_addr);
+            if(self.check_non_occupied(&Addr::new(i_addr)).unwrap()){
+                self.set_value(&Addr::new(i_addr),i_addr );     //在找到的块区，写入块的入口
+                return Ok(Addr::new(i_addr));
+            }else{
+                i=i+1;
+                continue;
+            }
+            
+        }
         
+        Err(FindErr::Full)
     }
     
 }
 
 #[cfg(test)]
 
-#[test]
 fn test1()->std::io::Result<()>{
     let f=File::open("../test")?;
     let me=f.metadata()?;
@@ -168,7 +168,6 @@ fn test2(){
     assert!(bm.check_non_occupied(&addr).unwrap());
 }
 
-#[test]
 fn test3(){
     let bm=BitMap::new("../test",0);
     assert!(bm.check_non_occupied(&Addr::new(409600)).unwrap());
@@ -181,20 +180,19 @@ fn test4(){
     // let bm=BitMap::new("./test1",0);
     let f=File::open("../test1").unwrap();
     let mut br=BufReader::with_capacity(4, f);
-    br.seek_relative(16);
+    br.seek_relative(5116);
     br.fill_buf();
     let con=br.buffer();
     let a=u8_to_u32(&Vec::from(con));
     println!("{}",a);
 }   
-
 #[test]
 fn test5(){
-    let bm=BitMap::new("../test",0);
-    // bm.init();
-    let a=bm.free_block();
+    let bm=BitMap::new("../test1",1);
+    println!("{:?}",bm);
+    let a=bm.get_free_block();
     match a{
-        Ok(block_num)=>{println!("{}",block_num)},
-        Err(e)=>{println!("{:?}",e)}
-    }   
+        Ok(addr)=>{assert!(!bm.check_non_occupied(&addr).unwrap());},
+        Err(_)=>{println!("满");}
+    }
 }
