@@ -1,0 +1,81 @@
+use std::ops::Add;
+use std::convert::From;
+
+#[derive(Debug)]
+pub struct Addr{
+    addr:u32
+}
+
+impl Addr{
+    pub fn new(num:u32)->Addr{
+        Addr { addr: num }
+    }
+
+    pub fn set_addr(&mut self,num:u32){
+        self.addr=num;
+    }
+
+    pub fn get_raw_num(&self)->u32{
+        self.addr
+    }
+
+    pub fn into_block_addr(&self)->BlockAddr
+    {
+        BlockAddr { addr: self.addr/1024 }
+    }
+}
+
+impl Add for Addr{
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+    Self{
+        addr:self.addr+rhs.addr
+    }
+}
+}
+
+impl AsRef<u32> for Addr{
+    fn as_ref(&self) -> &u32 {
+        &self.addr
+    }
+}
+
+impl From<BlockAddr> for Addr{
+    fn from(value: BlockAddr) -> Self {
+        Addr { addr: value.addr*1024 }
+    }
+}
+
+#[derive(Debug)]
+pub struct BlockAddr{
+    addr:u32,
+}
+
+impl BlockAddr{
+    pub fn new(num:u32)->BlockAddr{
+        BlockAddr { addr: num }
+    }
+
+    pub fn into_addr(&self)->Addr{
+        Addr{addr:self.addr*1024}
+    }
+
+    pub fn get_raw_num(&self)->u32{
+        self.addr
+    }
+}
+
+impl Add for BlockAddr{
+        type Output=Self;
+        fn add(self, rhs: Self) -> Self::Output {
+            Self{
+                addr:self.addr+rhs.addr
+            }
+    }
+}
+
+impl From<Addr> for BlockAddr{
+    fn from(value: Addr) -> Self {
+        BlockAddr { addr: value.addr/1024 }
+    }
+}
