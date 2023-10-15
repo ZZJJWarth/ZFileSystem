@@ -19,7 +19,10 @@ impl BlockBitmap{
     }
 
     fn init(&self){
-        
+        let range=Self::get_blockrange_of_file();
+        for i in range.into_iter(){
+
+        }
     }
 
     fn get_blockrange_of_file()->BlockRange{
