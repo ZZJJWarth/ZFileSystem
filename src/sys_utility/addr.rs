@@ -46,7 +46,7 @@ impl From<BlockAddr> for Addr{
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug,PartialEq, Eq,PartialOrd,Clone,Copy)]
 pub struct BlockAddr{
     addr:u32,
 }
@@ -62,6 +62,15 @@ impl BlockAddr{
 
     pub fn get_raw_num(&self)->u32{
         self.addr
+    }
+}
+
+impl Add<u32> for BlockAddr{
+    type Output = Self;
+    fn add(self, rhs: u32) -> Self::Output {
+        Self{
+            addr:self.addr+rhs
+        }
     }
 }
 
@@ -93,26 +102,40 @@ impl BlockRange{
         }
     }
 
+    pub fn iter(&self)->BlockRangeIter{
+        BlockRangeIter{
+            current:self.start.clone(),
+            end:self.end.clone(),
+    }
     
 }
-impl Iterator for BlockRange{
-    type Item = BlockAddr;
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.start.addr == self.end.addr{
+}
+
+pub struct BlockRangeIter{
+    current:BlockAddr,
+    end:BlockAddr,
+}
+
+impl Iterator for BlockRangeIter{
+    type Item=BlockAddr;
+    fn next(&mut self)->Option<Self::Item>{
+        if self.current<=self.end{
+            let ret=self.current.clone();
+            self.current=self.current+BlockAddr::new(1);
+            Some(ret)
+        }else{
             None
-    }else{
-        Some(BlockAddr{addr:self.start.addr+1})
-    }
+        }
 }
 }
 
-struct WordAddr{
-    addr:u32,
-}
+// struct WordAddr{
+//     addr:u32,
+// }
 
-impl WordAddr{
-    pub fn new(num:u32)->WordAddr{
-        WordAddr { addr: num }
-    }
+// impl WordAddr{
+//     pub fn new(num:u32)->WordAddr{
+//         WordAddr { addr: num }
+//     }
     
-}
+// }

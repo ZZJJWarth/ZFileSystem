@@ -20,8 +20,8 @@ impl BlockBitmap{
 
     fn init(&self){
         let range=Self::get_blockrange_of_file();
-        for i in range.into_iter(){
-
+        for i in range.iter(){
+            
         }
     }
 
@@ -30,15 +30,15 @@ impl BlockBitmap{
         let end=Self::file_max_block();
         BlockRange::new(start, end)
     }
-
+///找到文件的最大block
     fn file_max_block() -> BlockAddr {  //向下调用接口
         todo!()
     }
-
-    fn set_non_occupied(&self,block_addr:BlockAddr){
+///给定一个blockAddr，将对应的Bitmap修改成未占用
+    fn set_non_occupied(&self,block_addr:BlockAddr){       
         todo!()
     }
-
+///给定一个blockAddr,将对应的Bitmap修改成指定的BlockAddr
     fn set_value(&self,block_addr:BlockAddr,value:BlockAddr){
         todo!()
     }
