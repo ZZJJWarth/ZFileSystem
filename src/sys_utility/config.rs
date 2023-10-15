@@ -1,0 +1,1 @@
+pub static FILE_PATH:&str="../test1";

@@ -79,3 +79,39 @@ impl From<Addr> for BlockAddr{
         BlockAddr { addr: value.addr/1024 }
     }
 }
+
+pub struct BlockRange{
+    start:BlockAddr,
+    end:BlockAddr,
+}
+
+impl BlockRange{
+    pub fn new(start:BlockAddr,end:BlockAddr)->BlockRange{
+        BlockRange{
+            start,
+            end,
+        }
+    }
+
+}
+impl Iterator for BlockRange{
+    type Item = BlockAddr;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.start.addr == self.end.addr{
+            None
+    }else{
+        Some(BlockAddr{addr:self.start.addr+1})
+    }
+}
+}
+
+struct WordAddr{
+    addr:u32,
+}
+
+impl WordAddr{
+    pub fn new(num:u32)->WordAddr{
+        WordAddr { addr: num }
+    }
+    
+}
