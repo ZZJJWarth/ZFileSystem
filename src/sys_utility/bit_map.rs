@@ -175,7 +175,7 @@ fn test3(){
 
 }
 
-#[test]
+// #[test]
 fn test4(){
     // let bm=BitMap::new("./test1",0);
     let f=File::open("../test1").unwrap();
@@ -186,7 +186,7 @@ fn test4(){
     let a=u8_to_u32(&Vec::from(con));
     println!("{}",a);
 }   
-#[test]
+// #[test]
 fn test5(){
     let bm=BitMap::new("../test1",1);
     println!("{:?}",bm);

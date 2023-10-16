@@ -1,47 +1,52 @@
-use super::addr::{BlockAddr,BlockRange};
+use super::addr::{BlockAddr,BlockRange,BlockCount};
+use super::bitmap_servant::BitmapServant;
 use super::config::FILE_PATH;
 
-
+#[derive(Debug)]
 struct BlockBitmap {
-    
-    bitmap_entry:BlockAddr,
+    servant:BitmapServant,
     block_num:u32,
     reserved_block_num:u32,
 }
 
 impl BlockBitmap{
     fn new(bitmap_entry:BlockAddr,block_num:u32,reserved_block_num:u32)->Self{
+        
         Self{
-            bitmap_entry,
+            servant:BitmapServant::new(bitmap_entry),
             block_num,
             reserved_block_num,
         }
     }
 
-    fn init(&self){
-        let range=Self::get_blockrange_of_file();
+    fn init(&mut self){
+        let range=self.get_blockrange_of_file();
+        let mut count=BlockCount::new(self.reserved_block_num);
         for i in range.iter(){
-            
+            if(count.reduce()){
+                self.servant.set_value(i, i);
+            }else{
+                self.servant.set_non_occupied(i);
+            }
         }
     }
 
-    fn get_blockrange_of_file()->BlockRange{
+    fn get_blockrange_of_file(&self)->BlockRange{
         let start=BlockAddr::new(0);
-        let end=Self::file_max_block();
+        let end=self.servant.file_max_block();
         BlockRange::new(start, end)
     }
-///找到文件的最大block
-    fn file_max_block() -> BlockAddr {  //向下调用接口
-        todo!()
-    }
-///给定一个blockAddr，将对应的Bitmap修改成未占用
-    fn set_non_occupied(&self,block_addr:BlockAddr){       
-        todo!()
-    }
-///给定一个blockAddr,将对应的Bitmap修改成指定的BlockAddr
-    fn set_value(&self,block_addr:BlockAddr,value:BlockAddr){
-        todo!()
-    }
+
+
 
 }
 
+
+#[cfg(test)]
+
+#[test]
+fn test1(){
+    let mut a=BlockBitmap::new(BlockAddr::new(0), 10, 0);
+    a.init();
+    println!("{:#?}",a);
+}

@@ -1,5 +1,8 @@
-use std::ops::Add;
+use std::ops::{Add,Div,Rem};
 use std::convert::From;
+
+use super::bitmap_servant::BlockOffset;
+use super::config::BLOCK_SIZE;
 
 #[derive(Debug)]
 pub struct Addr{
@@ -48,7 +51,7 @@ impl From<BlockAddr> for Addr{
 
 #[derive(Debug,PartialEq, Eq,PartialOrd,Clone,Copy)]
 pub struct BlockAddr{
-    addr:u32,
+    pub addr:u32,
 }
 
 impl BlockAddr{
@@ -62,6 +65,22 @@ impl BlockAddr{
 
     pub fn get_raw_num(&self)->u32{
         self.addr
+    }
+}
+
+impl Rem<u32> for BlockAddr{
+    type Output = WordAddrCount;
+    fn rem(self, rhs: u32) -> Self::Output {
+        let num=self.addr%rhs;
+        WordAddrCount::new(num)
+    }
+}
+
+impl Div<u32> for BlockAddr{
+    type Output = BlockCount;
+    fn div(self, rhs: u32) -> Self::Output {
+        let num=self.addr/rhs;
+        BlockCount::new(num)
     }
 }
 
@@ -88,7 +107,7 @@ impl From<Addr> for BlockAddr{
         BlockAddr { addr: value.addr/1024 }
     }
 }
-
+#[derive(Debug)]
 pub struct BlockRange{
     start:BlockAddr,
     end:BlockAddr,
@@ -128,14 +147,62 @@ impl Iterator for BlockRangeIter{
         }
 }
 }
+#[derive(Debug,Clone, Copy)]
+pub struct BlockCount{
+    num:u32
+}
 
-// struct WordAddr{
-//     addr:u32,
-// }
+impl Add<WordAddrCount> for BlockCount{
+    type Output = Addr;
+    fn add(self, rhs: WordAddrCount) -> Self::Output {
+        let num=self.num*BLOCK_SIZE+rhs.num;
+        Addr::new(num)
+    }
+}
 
-// impl WordAddr{
-//     pub fn new(num:u32)->WordAddr{
-//         WordAddr { addr: num }
-//     }
-    
-// }
+impl Add<BlockAddr> for BlockCount{
+    type Output = BlockCount;
+    fn add(self, rhs: BlockAddr) -> Self::Output {
+        BlockCount{
+            num:self.num+rhs.get_raw_num()
+        }
+    }
+}
+
+impl BlockCount{
+    pub fn new(num:u32)->BlockCount{
+        BlockCount{
+            num
+        }
+    }
+
+    pub fn reduce(&mut self)->bool{
+        if(self.num>0){
+            self.num=self.num-1;
+            true
+        }else{
+            false
+        }
+    }
+}
+#[derive(Debug)]
+struct WordAddr{
+    addr:u32,
+}
+
+impl WordAddr{
+    pub fn new(num:u32)->WordAddr{
+        WordAddr { addr: num }
+    }   
+}
+
+#[derive(Debug,Clone, Copy)]
+pub struct WordAddrCount{
+    num:u32,
+}
+
+impl WordAddrCount{
+    pub fn new(num:u32)->WordAddrCount{
+        WordAddrCount { num }
+    }
+}
