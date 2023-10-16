@@ -1,19 +1,23 @@
 use std::ops::Add;
 
 use super::addr::{BlockAddr, BlockCount, Addr, WordAddrCount};
+use super::block_bit_map::BlockBitmap;
 use super::config::{BLOCK_SIZE, NON_OCCUPY_NUM};
+use super::file_reader::FileReader;
 use super::file_writer::FileWriter;
 #[derive(Debug)]
 pub struct BitmapServant{
     block_entry:BlockAddr,
-    f_writer:FileWriter
+    f_writer:FileWriter,
+    f_reader:FileReader
 }
 
 impl BitmapServant{
     pub fn new(block_entry:BlockAddr)->BitmapServant{
         BitmapServant{
             block_entry,
-            f_writer:FileWriter::new(super::file_writer::WriterOption::Bitmap)
+            f_writer:FileWriter::new(super::file_writer::IoOption::Bitmap),
+            f_reader:FileReader::new(super::file_writer::IoOption::Bitmap)
         }
     }
 
@@ -30,7 +34,25 @@ impl BitmapServant{
 ///给定一个blockAddr,将对应的Bitmap修改成指定的BlockAddr
     pub fn set_value(&mut self,block_addr:BlockAddr,value:BlockAddr){
         let offset=BlockOffset::new(block_addr)+self.block_entry;
-        self.f_writer.bitmap_write(offset, block_addr);
+        self.f_writer.bitmap_write(offset, value);
+    }
+///check一个块是否是空闲的
+    pub fn check_block_empty(&mut self,block:BlockAddr)->bool{
+        let offset=BlockOffset::new(block);
+        let read=self.f_reader.bitmap_read(offset);
+        // println!("{:?}",read==NON_OCCUPY_NUM);
+        if(read==NON_OCCUPY_NUM){
+            true
+        }else{
+            false
+        }
+    }
+
+    pub fn read_a_block(&mut self,block:BlockAddr)->BlockAddr{
+        let offset=BlockOffset::new(block);
+        let read=self.f_reader.bitmap_read(offset);
+        read
+
     }
 
 }
@@ -41,9 +63,9 @@ pub struct BlockOffset{
 }
 
 impl BlockOffset{
-    fn new(block:BlockAddr)->BlockOffset{
+    pub fn new(block:BlockAddr)->BlockOffset{
         let rem=(BLOCK_SIZE/4);
-        BlockOffset { b_offset: block/rem, w_offset:block%rem }
+        BlockOffset { b_offset: block/rem, w_offset:(block%rem)*4 }
     }
 
     pub fn addr_offset(&self)->Addr{
@@ -66,6 +88,22 @@ impl Add<BlockAddr> for BlockOffset{
 #[test]
 fn test1(){
     
-    let a=BlockOffset::new(BlockAddr::new(266));
-    println!("{:?}",a);
+    let mut a=BlockBitmap::new(BlockAddr::new(0), 10, 1);
+    a.init();
+    let mut ser=BitmapServant::new(BlockAddr { addr: 0 });
+    ser.set_non_occupied(BlockAddr::new(1)) ;
+    ser.set_value(BlockAddr::new(1),BlockAddr::new(1));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(0)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(1)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(2)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(3)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(4)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(5)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(6)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(7)));
+    println!("{:?}",ser.read_a_block(BlockAddr::new(8)));
+}
+
+// #[test]
+fn test2(){
 }

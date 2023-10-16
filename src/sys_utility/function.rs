@@ -38,7 +38,7 @@ pub fn u8_to_u32(data: &Vec<u8>) -> u32 {
 }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn test1() {
     // let mut a:u32=1135201314;
     // let A=a;

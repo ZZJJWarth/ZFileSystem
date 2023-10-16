@@ -1,4 +1,4 @@
-use std::ops::{Add,Div,Rem};
+use std::ops::{Add,Div,Rem, Mul};
 use std::convert::From;
 
 use super::bitmap_servant::BlockOffset;
@@ -199,6 +199,13 @@ impl WordAddr{
 #[derive(Debug,Clone, Copy)]
 pub struct WordAddrCount{
     num:u32,
+}
+
+impl Mul<u32> for WordAddrCount{
+    type Output = WordAddrCount;
+    fn mul(self, rhs: u32) -> Self::Output {
+        WordAddrCount { num: self.num * rhs }
+    }
 }
 
 impl WordAddrCount{

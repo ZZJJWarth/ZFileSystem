@@ -178,9 +178,9 @@ fn test3(){
 // #[test]
 fn test4(){
     // let bm=BitMap::new("./test1",0);
-    let f=File::open("../test1").unwrap();
+    let f=File::open("../test2").unwrap();
     let mut br=BufReader::with_capacity(4, f);
-    br.seek_relative(5116);
+    br.seek_relative(0);
     br.fill_buf();
     let con=br.buffer();
     let a=u8_to_u32(&Vec::from(con));
