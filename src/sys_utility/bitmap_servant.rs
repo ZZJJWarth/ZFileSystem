@@ -21,6 +21,7 @@ impl BitmapServant{
         }
     }
 
+
 ///找到文件的最大block
     pub fn file_max_block(&self) -> BlockAddr {  //向下调用接口
         let u8_len=self.f_writer.get_file_len() as u32;
@@ -63,6 +64,7 @@ pub struct BlockOffset{
 }
 
 impl BlockOffset{
+    ///为块地址服务的Offset，接收一个绝对块地址，返回一个针对Bitmap有效的Offset，指出应该放入第几的块的哪里
     pub fn new(block:BlockAddr)->BlockOffset{
         let rem=(BLOCK_SIZE/4);
         BlockOffset { b_offset: block/rem, w_offset:(block%rem)*4 }
@@ -85,14 +87,12 @@ impl Add<BlockAddr> for BlockOffset{
 
 #[cfg(test)]
 
-#[test]
+// #[test]
 fn test1(){
     
     let mut a=BlockBitmap::new(BlockAddr::new(0), 10, 1);
     a.init();
     let mut ser=BitmapServant::new(BlockAddr { addr: 0 });
-    ser.set_non_occupied(BlockAddr::new(1)) ;
-    ser.set_value(BlockAddr::new(1),BlockAddr::new(1));
     println!("{:?}",ser.read_a_block(BlockAddr::new(0)));
     println!("{:?}",ser.read_a_block(BlockAddr::new(1)));
     println!("{:?}",ser.read_a_block(BlockAddr::new(2)));

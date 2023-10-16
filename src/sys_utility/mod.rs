@@ -6,3 +6,8 @@ mod config;
 mod bitmap_servant;
 mod file_writer;
 mod file_reader;
+mod block;
+mod metadata;
+mod z_file;
+mod raw_file;
+mod block_servant;

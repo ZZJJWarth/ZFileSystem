@@ -49,6 +49,7 @@ impl FileWriter{
         let mt=f.metadata().unwrap();
         mt.len()
     }
+
 }
 
 #[cfg(test)]
