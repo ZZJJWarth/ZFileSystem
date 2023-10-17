@@ -1,4 +1,4 @@
-use super::addr::BlockAddr;
+use super::{addr::BlockAddr, block_bit_map::BlockBitmap};
 
 pub static FILE_PATH: &str = "../test1";
 pub static BLOCK_SIZE: u32 = 1024;

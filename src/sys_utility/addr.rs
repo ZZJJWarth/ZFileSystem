@@ -1,10 +1,10 @@
 use std::convert::From;
-use std::ops::{Add, Div, Mul, Rem};
+use std::ops::{Add, Div, Mul, Rem, Sub, SubAssign};
 
 use super::bitmap_servant::BlockOffset;
 use super::config::BLOCK_SIZE;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Addr {
     addr: u32,
 }
@@ -35,6 +35,13 @@ impl Add for Addr {
         Self {
             addr: self.addr + rhs.addr,
         }
+    }
+}
+
+impl Sub<Addr> for Addr {
+    type Output = u32;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.addr - rhs.addr
     }
 }
 

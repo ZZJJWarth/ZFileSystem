@@ -1,7 +1,11 @@
 use super::{
     addr::{Addr, BlockAddr},
+    bit_map,
+    block_bit_map::BlockBitmap,
     config::BLOCK_SIZE,
+    file_writer::FileWriter,
 };
+
 use std::ops::{Add, Div, Rem, Sub};
 pub struct BlockServant {
     entry: BlockAddr,
@@ -12,10 +16,33 @@ impl BlockServant {
         BlockServant { entry }
     }
 
-    // pub fn
+    pub fn write(&self, offset: u32, data: Vec<u8>, size: u32) -> Result<(), ()> {
+        let mut fw = FileWriter::new(super::file_writer::IoOption::Other(BLOCK_SIZE));
+        let ptr = data.as_slice().as_ptr();
+        let start = VirtualAddr { addr: offset };
+        let range = VirtualRange::with_size(start, size);
+        let n = range.relative_start_block_gap();
+        //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
+        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut now_block = self.entry;
+        for i in 0..n {
+            now_block = bit_map.get_content(now_block);
+        }
+        for i in range.iter() {
+            let next_block = bit_map.get_content(now_block);
+            let bo_range = BlockServantOffsetRange::new(now_block, i);
+            now_block = next_block;
+            let l = bo_range.get_len();
+            let dp = DataPack::new(ptr, l);
+            let ptr = unsafe { ptr.offset(l as isize) };
+            fw.write(bo_range, dp);
+            println!("{:?}", bo_range);
+        }
+        Ok(())
+    }
 }
 #[derive(Debug, Clone, Copy)]
-struct VirtualAddr {
+pub struct VirtualAddr {
     addr: u32,
 }
 
@@ -55,7 +82,7 @@ impl VirtualAddr {
     }
 }
 #[derive(Debug, Clone, Copy)]
-struct VirtualAddrCount {
+pub struct VirtualAddrCount {
     num: u32,
 }
 
@@ -84,8 +111,9 @@ impl BlockServantOffset {
         self.offset + self.block
     }
 }
-///可以直接向下提供的结构体，每次都是一块中间的范围
-struct BlockServantOffsetRange {
+#[derive(Debug, Clone, Copy)]
+///可以直接向下提供的结构体，每次都是一块中间的范围,块地址的装载就在这里
+pub struct BlockServantOffsetRange {
     block_entry: BlockAddr,
     v_range: VirtualRange,
 }
@@ -98,11 +126,25 @@ impl BlockServantOffsetRange {
         }
     }
 
-    
+    pub fn get_block_entry(&self) -> BlockAddr {
+        self.block_entry
+    }
+
+    pub fn get_start(&self) -> VirtualAddr {
+        self.v_range.start
+    }
+
+    pub fn get_end(&self) -> VirtualAddr {
+        self.v_range.end
+    }
+
+    pub fn get_len(&self) -> u32 {
+        self.v_range.len.len()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
-struct VirtualRange {
+pub struct VirtualRange {
     start: VirtualAddr,
     end: VirtualAddr,
     len: VirtualAddrCount,
@@ -126,9 +168,13 @@ impl VirtualRange {
             },
         )
     }
+
+    pub fn relative_start_block_gap(&self) -> u32 {
+        self.start.addr % BLOCK_SIZE as u32
+    }
 }
 
-struct VirtualRangeIterator {
+pub struct VirtualRangeIterator {
     current: VirtualAddr,
     end: VirtualAddr,
 }
@@ -174,6 +220,17 @@ impl Iterator for VirtualRangeIterator {
         ans
     }
 }
+#[derive(Debug, Clone, Copy)]
+pub struct DataPack {
+    pub write_in: *const u8,
+    pub len: u32,
+}
+
+impl DataPack {
+    pub fn new(write_in: *const u8, len: u32) -> DataPack {
+        DataPack { write_in, len }
+    }
+}
 
 #[cfg(test)]
 #[test]
@@ -184,7 +241,7 @@ fn test() {
     assert_eq!(blockset.to_addr(), Addr::new(10250));
 }
 
-#[test]
+// #[test]
 fn test1() {
     let s = VirtualAddr::new(1023);
     let e = VirtualAddr::new(1024);
@@ -193,4 +250,10 @@ fn test1() {
     for j in i {
         println!("{:?}", j);
     }
+}
+//这个test
+// #[test]
+fn test2() {
+    let s = BlockServant::new(BlockAddr { addr: 25 });
+    s.write(0, vec![], 2048);
 }

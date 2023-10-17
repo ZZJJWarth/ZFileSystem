@@ -29,7 +29,7 @@ impl FileReader {
             .seek(std::io::SeekFrom::Start(offset.get_raw_num() as u64));
         self.br.fill_buf();
         let a = self.br.buffer().as_ptr();
-        // println!("a={:?}",a);
+        // println!("a={:?}",unsafe { *(a as *const BlockAddr) });
         let num: BlockAddr = unsafe { *(a as *const BlockAddr) };
         num
     }

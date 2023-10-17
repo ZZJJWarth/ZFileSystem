@@ -23,7 +23,7 @@ impl ZFile {
         todo!()
     }
 
-    pub fn write(offset: u32, buf: &mut Vec<u8>) {
+    pub fn write(offset: u32, buf: &mut Vec<u8>, size: u32) {
         todo!()
     }
 }
