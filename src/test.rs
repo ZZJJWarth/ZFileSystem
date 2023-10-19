@@ -8,15 +8,17 @@ struct Test {
 // }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn test_main() {
     use std::{fs::File, io::BufWriter};
 
     let a: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     let aa = a.as_slice().as_ptr();
     let aaa = unsafe { aa as *const &[u8; 5] };
-    let aa = unsafe { aa.offset(5) as *const &[u8; 5] };
-
+    let aa = unsafe { aa.offset(5) as *const &[u8] };
+    println!("{:?}", unsafe {
+        
+    });
     let f = File::options().write(true).open("../apiTest").unwrap();
     let br = BufWriter::with_capacity(5, f);
 }

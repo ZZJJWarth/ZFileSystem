@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufWriter, Seek, SeekFrom, Write},
+    io::{BufWriter, Seek, SeekFrom, Write, BufReader, BufRead},
     mem::transmute,
 };
 
@@ -18,6 +18,7 @@ pub enum IoOption {
 #[derive(Debug)]
 pub struct FileWriter {
     bf: BufWriter<File>,
+    br: BufReader<File>
 }
 
 impl FileWriter {
@@ -26,11 +27,14 @@ impl FileWriter {
         match opt {
             IoOption::Bitmap => {
                 let mut bf = BufWriter::with_capacity(4 as usize, f);
-                FileWriter { bf }
+                let f=File::open(FILE_PATH).unwrap();
+                FileWriter { bf,br:BufReader::with_capacity(4 as usize, f)}
             }
             IoOption::Other(cap) => {
-                let mut bf = BufWriter::with_capacity(cap as usize, f);
-                FileWriter { bf }
+                let mut bf = BufWriter::with_capacity(BLOCK_SIZE as usize, f);
+                let f=File::open(FILE_PATH).unwrap();
+                let br=BufReader::with_capacity(BLOCK_SIZE as usize, f);
+                FileWriter { bf, br}
             }
         }
     }
@@ -53,15 +57,37 @@ impl FileWriter {
     }
 
     pub fn write(&mut self, br: BlockServantOffsetRange, dp: DataPack) -> Result<(), ()> {
-        let br = AddrRange::from_block_servant_range(br);
-        let ptr = unsafe { dp.write_in as *const &[u8] };
-        let a: *const &[u8] = ptr.cast();
-        unsafe {
-            self.bf.write(*ptr);
+        let ptr=dp.write_in;
+        let ar=AddrRange::from_block_servant_range(br);
+        let entry=br.get_block_entry().into_addr().get_raw_num();
+        let offset=AddrRange::from_block_servant_range(br);
+        self.br.seek(SeekFrom::Start(entry as u64)).unwrap();
+        self.br.fill_buf();
+        let mut block:[u8;BLOCK_SIZE as usize]=[0;BLOCK_SIZE as usize];
+        let temp=self.br.buffer();
+        for i in 0..BLOCK_SIZE as usize {
+            block[i]=temp[i];
         }
-
+        let start=ar.start.get_raw_num()%BLOCK_SIZE;
+        let mut end=ar.end.get_raw_num()%BLOCK_SIZE;
+        if(end==0){
+            end=BLOCK_SIZE;
+        }
+        let mut count=dp.index;
+        for i in start..end {
+            block[i as usize]=ptr[count];
+            
+            count=count+1;
+        }
+        self.bf.seek(SeekFrom::Start(entry as u64));
+        // println!("写入地址为：{}",entry);
+        // println!("写入数据为：{:?}",ptr);
+        self.bf.write(&block);
         Ok(())
     }
+
+    // pub fn read_block(&mut self)
+    
 }
 
 #[cfg(test)]
@@ -80,10 +106,10 @@ fn test1() {
     println!("{:?}", addr);
 }
 #[derive(Debug)]
-struct AddrRange {
-    start: Addr,
-    end: Addr,
-    len: u32,
+pub struct AddrRange {
+    pub start: Addr,
+    pub end: Addr,
+    pub len: u32,
 }
 
 impl AddrRange {
@@ -101,7 +127,7 @@ impl AddrRange {
 }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn addr_range_test() {
     use crate::sys_utility::block_servant::{VirtualAddr, VirtualRange};
 

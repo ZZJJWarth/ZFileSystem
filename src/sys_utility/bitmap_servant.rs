@@ -34,9 +34,12 @@ impl BitmapServant {
     }
     ///给定一个blockAddr,将对应的Bitmap修改成指定的BlockAddr
     pub fn set_value(&mut self, block_addr: BlockAddr, value: BlockAddr) {
+        // println!("set_value in {:?} with {:?}", block_addr, value);
+        // println!("in{:?},{:?}",block_addr,value);
         let offset = BlockOffset::new(block_addr) + self.block_entry;
         // println!("write:{:?}", value);
         self.f_writer.bitmap_write(offset, value);
+        // println!("Exit");
     }
     ///check一个块是否是空闲的
     pub fn check_block_empty(&mut self, block: BlockAddr) -> bool {
@@ -94,6 +97,7 @@ fn test1() {
     let mut a = BlockBitmap::new(BlockAddr::new(0), 10, 1);
     a.init();
     let mut ser = BitmapServant::new(BlockAddr { addr: 0 });
+    a.get_free_block();
     println!("{:?}", ser.read_a_block(BlockAddr::new(0)));
     println!("{:?}", ser.read_a_block(BlockAddr::new(1)));
     println!("{:?}", ser.read_a_block(BlockAddr::new(2)));
@@ -105,5 +109,8 @@ fn test1() {
     println!("{:?}", ser.read_a_block(BlockAddr::new(8)));
 }
 
-// #[test]
-fn test2() {}
+#[test]
+fn test2() {
+
+
+}

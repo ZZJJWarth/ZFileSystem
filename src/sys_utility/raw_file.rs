@@ -1,6 +1,6 @@
 use super::metadata::Metadata;
 
-#[derive(Clone, Copy)]
+#[derive(Debug,Clone, Copy)]
 pub enum FileType {
     File,
     Dir,
@@ -9,4 +9,5 @@ pub enum FileType {
 pub trait RawFile {
     fn get_type(&self) -> FileType;
     fn metadata(&self) -> Metadata;
+    
 }

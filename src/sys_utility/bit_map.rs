@@ -1,4 +1,5 @@
-use super::addr::Addr;
+use super::addr::{Addr, BlockAddr};
+use super::config::END_NUM;
 use super::function::{u32_to_vec, u8_to_u32};
 use std::convert::AsRef;
 use std::fs::File;
@@ -140,6 +141,8 @@ impl BitMap {
 
         Err(FindErr::Full)
     }
+
+    
 }
 
 #[cfg(test)]

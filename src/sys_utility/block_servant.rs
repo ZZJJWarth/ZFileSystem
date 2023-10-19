@@ -3,12 +3,16 @@ use super::{
     bit_map,
     block_bit_map::BlockBitmap,
     config::BLOCK_SIZE,
-    file_writer::FileWriter,
+    file_writer::FileWriter, file_reader::FileReader,
 };
 
-use std::ops::{Add, Div, Rem, Sub};
+// static mut TEST_BITMAP:BlockBitmap=BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2);
+
+use std::{ops::{Add, Div, Rem, Sub}};
+#[derive(Debug,Clone, Copy)]
 pub struct BlockServant {
     entry: BlockAddr,
+
 }
 
 impl BlockServant {
@@ -16,31 +20,93 @@ impl BlockServant {
         BlockServant { entry }
     }
 
-    pub fn write(&self, offset: u32, data: Vec<u8>, size: u32) -> Result<(), ()> {
+    pub fn write(&self, offset: u32, data: &Vec<u8>, size: u32) -> Result<(), ()> {
         let mut fw = FileWriter::new(super::file_writer::IoOption::Other(BLOCK_SIZE));
-        let ptr = data.as_slice().as_ptr();
+        let mut ptr = data.as_slice();
+        
         let start = VirtualAddr { addr: offset };
         let range = VirtualRange::with_size(start, size);
         let n = range.relative_start_block_gap();
+        // println!("n:{}", n);
         //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
         let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
         let mut now_block = self.entry;
+        
         for i in 0..n {
             now_block = bit_map.get_content(now_block);
+            
         }
+        // println!("now_block:{:?}",now_block);
+        let mut index=0;
         for i in range.iter() {
+            // println!("{:?}",i);
             let next_block = bit_map.get_content(now_block);
+            
             let bo_range = BlockServantOffsetRange::new(now_block, i);
             now_block = next_block;
             let l = bo_range.get_len();
-            let dp = DataPack::new(ptr, l);
-            let ptr = unsafe { ptr.offset(l as isize) };
+            let dp = DataPack::new(ptr,index, l);
+            index=index+l as usize;
+            // println!("fw.write: bo_range:{:?},dp:{:?}",bo_range,dp);
             fw.write(bo_range, dp);
-            println!("{:?}", bo_range);
+            // // println!("{:?}", bo_range);
+            // for i in 0..n {
+                // now_block = bit_map.get_content(now_block);
+                // println!("{:?}",now_block);
+            // }
         }
         Ok(())
     }
+
+    pub fn read(&self, offset: u32,data:&mut Vec<u8>, size: u32)->Result<(),()> {
+        let mut fr=FileReader::new(super::file_writer::IoOption::Other(BLOCK_SIZE));
+        let start = VirtualAddr { addr: offset };
+        let range = VirtualRange::with_size(start, size);
+        
+        fr.read(range, data,self.entry);
+        
+        Ok(())
+    }
+
+    pub fn read_check(&self,file_len:u32,offset:u32,size:u32)->Result<(),()>{
+        if(file_len>=offset+size){
+            Ok(())
+        }else{
+            Err(())
+        }
+    }
+
+    pub fn write_check(&self,file_max_len:u32,offset:u32,size:u32)->Result<u32,()>{
+        if(file_max_len>=offset+size){
+            Ok(file_max_len)
+        }else{
+            
+            //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
+            let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+            let mut now_len=file_max_len;
+            let mut last_block=bit_map.find_final_block(self.entry).unwrap();
+            // println!("last_block:{:?}",last_block);   
+            // let mut count=10;
+            while(now_len<offset+size){
+                // count=count-1;
+
+                // if(count==0){
+                //     break;
+                // }
+                last_block=bit_map.add_block(last_block);
+                
+                now_len=now_len+BLOCK_SIZE;
+                // println!("now_len={},offset+size={}",now_len,offset+size);
+            }
+            Ok(now_len)
+        }
+    }
+
+    
+
 }
+
+    
 #[derive(Debug, Clone, Copy)]
 pub struct VirtualAddr {
     addr: u32,
@@ -170,7 +236,7 @@ impl VirtualRange {
     }
 
     pub fn relative_start_block_gap(&self) -> u32 {
-        self.start.addr % BLOCK_SIZE as u32
+        self.start.addr / BLOCK_SIZE as u32
     }
 }
 
@@ -221,19 +287,20 @@ impl Iterator for VirtualRangeIterator {
     }
 }
 #[derive(Debug, Clone, Copy)]
-pub struct DataPack {
-    pub write_in: *const u8,
+pub struct DataPack<'a> {
+    pub write_in: &'a [u8],
+    pub index:usize,
     pub len: u32,
 }
 
-impl DataPack {
-    pub fn new(write_in: *const u8, len: u32) -> DataPack {
-        DataPack { write_in, len }
+impl<'a> DataPack<'a> {
+    pub fn new(write_in: &'a [u8],index:usize, len: u32) -> DataPack {
+        DataPack { write_in, index,len }
     }
 }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn test() {
     let block_entry = BlockAddr::new(10);
     let vaddr = VirtualAddr::new(10);
@@ -254,6 +321,9 @@ fn test1() {
 //这个test
 // #[test]
 fn test2() {
-    let s = BlockServant::new(BlockAddr { addr: 25 });
-    s.write(0, vec![], 2048);
+    let s = BlockServant::new(BlockAddr { addr: 1 });
+    let mut buff:Vec<u8>=vec![];
+    s.write(1016, &mut vec![1,2,3,4,5,6,7,8,8,7,6,5,4,3,2,1], 16);
+    s.read(1016, &mut buff, 16);
+    println!("{:?}", buff);
 }

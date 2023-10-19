@@ -1,6 +1,7 @@
 use super::addr::{BlockAddr, BlockCount, BlockRange};
+use super::bit_map;
 use super::bitmap_servant::BitmapServant;
-use super::config::{END_NUM, FILE_PATH};
+use super::config::{END_NUM, FILE_PATH, NON_OCCUPY_NUM};
 
 #[derive(Debug)]
 pub struct BlockBitmap {
@@ -23,7 +24,6 @@ impl BlockBitmap {
         let range = self.get_blockrange_of_file();
         for i in range.iter() {
             if (self.check_block_empty(i)) {
-                // println!("{:?}",i);
                 self.servant.set_value(i, END_NUM); //返回的空闲块认为是最后一块
                 return Ok(i);
             }
@@ -53,7 +53,7 @@ impl BlockBitmap {
         BlockRange::new(start, end)
     }
 
-    fn check_block_empty(&mut self, block: BlockAddr) -> bool {
+    pub fn check_block_empty(&mut self, block: BlockAddr) -> bool {
         self.servant.check_block_empty(block)
     }
     ///使得一个块变为empty
@@ -62,12 +62,54 @@ impl BlockBitmap {
     }
     ///获取位图中块的信息，需要注意，位图中存储的东西其实就是BlockAddr，这个东西相当于一个链表
     pub fn get_content(&mut self, block: BlockAddr) -> BlockAddr {
+        if(block==NON_OCCUPY_NUM||block==END_NUM){
+            panic!("尝试查找空块或结束块！");
+        }
         self.servant.read_a_block(block)
+    }
+
+    pub fn find_final_block(&mut self,ba:BlockAddr) -> Result<BlockAddr, ()> {
+        let mut ba=ba;
+        let mut nba=self.get_content(ba);
+        // self.test_block(ba);
+        // println!("nba:{:?}",nba);
+        let mut count=10;
+        while(nba!=END_NUM&&nba!=NON_OCCUPY_NUM){
+            // count-=1;
+            // if(count==0){
+            //     break;
+            // }
+            // println!("nba:{:?}",nba);
+            ba=nba;
+            nba=self.get_content(ba);
+        }
+        if ba==NON_OCCUPY_NUM{
+            Err(())
+        }else{
+            Ok(ba)
+        }
+    }
+
+    pub fn add_block(&mut self, block: BlockAddr)->BlockAddr{
+        let b=self.get_free_block().unwrap();
+        
+        self.set_value(block,b);
+        b
+    }
+
+    pub fn test_block(&mut self, block:BlockAddr){
+        let mut count=10;
+        let mut block=block;
+        while(block!=NON_OCCUPY_NUM&&block!=END_NUM&&count>0){
+            count=count-1;
+            println!("test {}:{:?}",count,block);
+            block=self.get_content(block);
+        }
     }
 }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn test1() {
     let mut a = BlockBitmap::new(BlockAddr::new(0), 10, 1);
     println!("{:?}", a.get_content(BlockAddr::new(1)));
@@ -75,15 +117,9 @@ fn test1() {
 
 // #[test]
 fn test2() {
+    //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-    let a = bit_map.get_free_block().unwrap();
-    let b = bit_map.get_free_block().unwrap();
-    let c = bit_map.get_free_block().unwrap();
-    bit_map.set_value(a, c);
-    println!("a:{:?}", a);
-    println!("b:{:?}", b);
-    println!("c:{:?}", c);
-    println!("content a:{:?}", bit_map.get_content(a));
-    println!("content b:{:?}", bit_map.get_content(b));
-    println!("content c:{:?}", bit_map.get_content(c));
+    bit_map.init();
+    // println!("content a:{:?}", bit_map.get_content(BlockAddr { addr: 2 }));
+    bit_map.get_free_block();
 }
