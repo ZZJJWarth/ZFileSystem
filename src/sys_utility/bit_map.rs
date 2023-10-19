@@ -141,8 +141,6 @@ impl BitMap {
 
         Err(FindErr::Full)
     }
-
-    
 }
 
 #[cfg(test)]

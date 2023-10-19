@@ -16,9 +16,7 @@ fn test_main() {
     let aa = a.as_slice().as_ptr();
     let aaa = unsafe { aa as *const &[u8; 5] };
     let aa = unsafe { aa.offset(5) as *const &[u8] };
-    println!("{:?}", unsafe {
-        
-    });
+    println!("{:?}", unsafe {});
     let f = File::options().write(true).open("../apiTest").unwrap();
     let br = BufWriter::with_capacity(5, f);
 }

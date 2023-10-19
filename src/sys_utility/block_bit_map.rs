@@ -1,3 +1,5 @@
+use core::panic;
+
 use super::addr::{BlockAddr, BlockCount, BlockRange};
 use super::bit_map;
 use super::bitmap_servant::BitmapServant;
@@ -62,48 +64,66 @@ impl BlockBitmap {
     }
     ///获取位图中块的信息，需要注意，位图中存储的东西其实就是BlockAddr，这个东西相当于一个链表
     pub fn get_content(&mut self, block: BlockAddr) -> BlockAddr {
-        if(block==NON_OCCUPY_NUM||block==END_NUM){
+        if (block == NON_OCCUPY_NUM || block == END_NUM) {
             panic!("尝试查找空块或结束块！");
         }
         self.servant.read_a_block(block)
     }
 
-    pub fn find_final_block(&mut self,ba:BlockAddr) -> Result<BlockAddr, ()> {
-        let mut ba=ba;
-        let mut nba=self.get_content(ba);
+    pub fn find_final_block(&mut self, ba: BlockAddr) -> Result<BlockAddr, ()> {
+        let mut ba = ba;
+        let mut nba = self.get_content(ba);
         // self.test_block(ba);
         // println!("nba:{:?}",nba);
-        let mut count=10;
-        while(nba!=END_NUM&&nba!=NON_OCCUPY_NUM){
+        let mut count = 10;
+        while (nba != END_NUM && nba != NON_OCCUPY_NUM) {
             // count-=1;
             // if(count==0){
             //     break;
             // }
             // println!("nba:{:?}",nba);
-            ba=nba;
-            nba=self.get_content(ba);
+            ba = nba;
+            nba = self.get_content(ba);
         }
-        if ba==NON_OCCUPY_NUM{
+        if ba == NON_OCCUPY_NUM {
             Err(())
-        }else{
+        } else {
             Ok(ba)
         }
     }
 
-    pub fn add_block(&mut self, block: BlockAddr)->BlockAddr{
-        let b=self.get_free_block().unwrap();
-        
-        self.set_value(block,b);
+    pub fn reduce_a_block(&mut self, block: BlockAddr) {
+        if (block == NON_OCCUPY_NUM) {
+            panic!("减少空块函数需要一个根块，但是接收到了空块");
+        }
+        let mut node = block;
+        let mut next = self.get_content(block);
+        if (next == END_NUM) {
+            self.set_empty_block(node);
+        }
+
+        while (self.get_content(next) != END_NUM) {
+            node = next;
+            next = self.get_content(next);
+        }
+        self.set_empty_block(next);
+        self.set_value(node, END_NUM);
+    }
+
+    pub fn add_block(&mut self, block: BlockAddr) -> BlockAddr {
+        let b = self.get_free_block().unwrap();
+
+        self.set_value(block, b);
         b
     }
 
-    pub fn test_block(&mut self, block:BlockAddr){
-        let mut count=10;
-        let mut block=block;
-        while(block!=NON_OCCUPY_NUM&&block!=END_NUM&&count>0){
-            count=count-1;
-            println!("test {}:{:?}",count,block);
-            block=self.get_content(block);
+    pub fn test_block(&mut self, block: BlockAddr) {
+        let mut count = 10;
+        let mut block = block;
+        while (block != NON_OCCUPY_NUM && block != END_NUM && count > 0) {
+            count = count - 1;
+            println!("test {}:{:?}", count, block);
+            block = self.get_content(block);
         }
     }
 }

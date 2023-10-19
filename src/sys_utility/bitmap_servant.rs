@@ -110,7 +110,4 @@ fn test1() {
 }
 
 #[test]
-fn test2() {
-
-
-}
+fn test2() {}

@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufWriter, Seek, SeekFrom, Write, BufReader, BufRead},
+    io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write},
     mem::transmute,
 };
 
@@ -18,7 +18,7 @@ pub enum IoOption {
 #[derive(Debug)]
 pub struct FileWriter {
     bf: BufWriter<File>,
-    br: BufReader<File>
+    br: BufReader<File>,
 }
 
 impl FileWriter {
@@ -27,14 +27,17 @@ impl FileWriter {
         match opt {
             IoOption::Bitmap => {
                 let mut bf = BufWriter::with_capacity(4 as usize, f);
-                let f=File::open(FILE_PATH).unwrap();
-                FileWriter { bf,br:BufReader::with_capacity(4 as usize, f)}
+                let f = File::open(FILE_PATH).unwrap();
+                FileWriter {
+                    bf,
+                    br: BufReader::with_capacity(4 as usize, f),
+                }
             }
             IoOption::Other(cap) => {
                 let mut bf = BufWriter::with_capacity(BLOCK_SIZE as usize, f);
-                let f=File::open(FILE_PATH).unwrap();
-                let br=BufReader::with_capacity(BLOCK_SIZE as usize, f);
-                FileWriter { bf, br}
+                let f = File::open(FILE_PATH).unwrap();
+                let br = BufReader::with_capacity(BLOCK_SIZE as usize, f);
+                FileWriter { bf, br }
             }
         }
     }
@@ -57,27 +60,27 @@ impl FileWriter {
     }
 
     pub fn write(&mut self, br: BlockServantOffsetRange, dp: DataPack) -> Result<(), ()> {
-        let ptr=dp.write_in;
-        let ar=AddrRange::from_block_servant_range(br);
-        let entry=br.get_block_entry().into_addr().get_raw_num();
-        let offset=AddrRange::from_block_servant_range(br);
+        let ptr = dp.write_in;
+        let ar = AddrRange::from_block_servant_range(br);
+        let entry = br.get_block_entry().into_addr().get_raw_num();
+        let offset = AddrRange::from_block_servant_range(br);
         self.br.seek(SeekFrom::Start(entry as u64)).unwrap();
         self.br.fill_buf();
-        let mut block:[u8;BLOCK_SIZE as usize]=[0;BLOCK_SIZE as usize];
-        let temp=self.br.buffer();
+        let mut block: [u8; BLOCK_SIZE as usize] = [0; BLOCK_SIZE as usize];
+        let temp = self.br.buffer();
         for i in 0..BLOCK_SIZE as usize {
-            block[i]=temp[i];
+            block[i] = temp[i];
         }
-        let start=ar.start.get_raw_num()%BLOCK_SIZE;
-        let mut end=ar.end.get_raw_num()%BLOCK_SIZE;
-        if(end==0){
-            end=BLOCK_SIZE;
+        let start = ar.start.get_raw_num() % BLOCK_SIZE;
+        let mut end = ar.end.get_raw_num() % BLOCK_SIZE;
+        if (end == 0) {
+            end = BLOCK_SIZE;
         }
-        let mut count=dp.index;
+        let mut count = dp.index;
         for i in start..end {
-            block[i as usize]=ptr[count];
-            
-            count=count+1;
+            block[i as usize] = ptr[count];
+
+            count = count + 1;
         }
         self.bf.seek(SeekFrom::Start(entry as u64));
         // println!("写入地址为：{}",entry);
@@ -87,7 +90,6 @@ impl FileWriter {
     }
 
     // pub fn read_block(&mut self)
-    
 }
 
 #[cfg(test)]
