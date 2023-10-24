@@ -31,6 +31,7 @@ impl RawFile for ZFile {
 }
 
 impl ZFile {
+    ///给定一个空闲块，返回一个ZFile
     pub fn new(file_name: &str, file_type: FileType, block_entry: BlockAddr) -> ZFile {
         let mut f = ZFile {
             metadata: Metadata::new(0, BLOCK_SIZE),
@@ -103,10 +104,6 @@ impl ZFile {
         v
     }
 
-    pub fn char_to_u8() -> u8 {
-        todo!()
-    }
-
     pub fn open(block: BlockAddr) -> Result<ZFile, ()> {
         let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
         if bit_map.get_content(block) == NON_OCCUPY_NUM {
@@ -142,6 +139,7 @@ impl ZFile {
         let mut i = self.metadata.get_file_len();
         if (i <= size + ZFILE_SIZE as u32) {
             self.metadata.set_file_len(ZFILE_SIZE as u32);
+            self.metadata.set_max_len(BLOCK_SIZE as u32);
             return;
         }
         let mut count = self.metadata.get_max_len();
@@ -199,8 +197,11 @@ fn test_reduce() {
     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
     let mut f = ZFile::open(BlockAddr { addr: 53 }).unwrap();
 
-    let mut v: Vec<u8> = vec![1; 1024];
-    f.add_write(&v, 1024);
+    let mut v: Vec<u8> = vec![1; 15000];
+    // f.add_write(&v, 15000);
+    // let mut a:Vec<u8>=vec![];
+    // f.read(30000, &mut a, 10);
+    // println!("{:?}",a);
     println!("{:?}", f);
     f.reduce(15000);
     println!("{:?}", f);
