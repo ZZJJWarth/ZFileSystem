@@ -1,10 +1,13 @@
 use std::ops::Add;
 
-use super::addr::{Addr, BlockAddr, BlockCount, WordAddrCount};
+use crate::sys_utility::block::file_writer;
+
+use super::super::{
+    addr::addr::{Addr, BlockAddr, BlockCount, WordAddrCount},
+    block::{file_reader::FileReader, file_writer::FileWriter},
+    config::config::{BLOCK_SIZE, NON_OCCUPY_NUM},
+};
 use super::block_bit_map::BlockBitmap;
-use super::config::{BLOCK_SIZE, NON_OCCUPY_NUM};
-use super::file_reader::FileReader;
-use super::file_writer::FileWriter;
 #[derive(Debug)]
 pub struct BitmapServant {
     block_entry: BlockAddr,
@@ -16,8 +19,8 @@ impl BitmapServant {
     pub fn new(block_entry: BlockAddr) -> BitmapServant {
         BitmapServant {
             block_entry,
-            f_writer: FileWriter::new(super::file_writer::IoOption::Bitmap),
-            f_reader: FileReader::new(super::file_writer::IoOption::Bitmap),
+            f_writer: FileWriter::new(file_writer::IoOption::Bitmap),
+            f_reader: FileReader::new(file_writer::IoOption::Bitmap),
         }
     }
 

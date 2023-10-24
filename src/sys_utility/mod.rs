@@ -1,14 +1,6 @@
 mod addr;
-mod bit_map;
-mod bitmap_servant;
+mod bitmap;
 mod block;
-mod block_bit_map;
-mod block_servant;
 mod config;
-mod file_reader;
-mod file_writer;
-mod function;
-mod metadata;
-mod raw_file;
-mod z_file;
+mod file;
 // mod z_file;

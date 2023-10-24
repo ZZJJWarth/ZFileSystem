@@ -1,9 +1,10 @@
 use core::panic;
 
-use super::addr::{BlockAddr, BlockCount, BlockRange};
-use super::bit_map;
-use super::bitmap_servant::BitmapServant;
-use super::config::{END_NUM, FILE_PATH, NON_OCCUPY_NUM};
+use super::super::{
+    addr::addr::{BlockAddr, BlockCount, BlockRange},
+    bitmap::bitmap_servant::BitmapServant,
+    config::config::{END_NUM, FILE_PATH, NON_OCCUPY_NUM},
+};
 
 #[derive(Debug)]
 pub struct BlockBitmap {

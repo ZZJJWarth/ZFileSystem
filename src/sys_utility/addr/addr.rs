@@ -1,8 +1,7 @@
 use std::convert::From;
 use std::ops::{Add, Div, Mul, Rem, Sub, SubAssign};
 
-use super::bitmap_servant::BlockOffset;
-use super::config::BLOCK_SIZE;
+use super::super::{bitmap::bitmap_servant::BlockOffset, config::config::BLOCK_SIZE};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Addr {

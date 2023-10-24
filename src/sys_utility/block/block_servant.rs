@@ -1,10 +1,9 @@
-use super::{
-    addr::{Addr, BlockAddr},
-    bit_map,
-    block_bit_map::BlockBitmap,
-    config::BLOCK_SIZE,
-    file_reader::FileReader,
-    file_writer::FileWriter,
+use super::super::{
+    addr::addr::{Addr, BlockAddr},
+    bitmap::block_bit_map::BlockBitmap,
+    block::file_reader::FileReader,
+    block::file_writer::FileWriter,
+    config::config::BLOCK_SIZE,
 };
 
 // static mut TEST_BITMAP:BlockBitmap=BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2);

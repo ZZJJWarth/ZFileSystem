@@ -4,11 +4,11 @@ use std::{
     mem::transmute,
 };
 
-use super::{
-    addr::{Addr, BlockAddr},
-    bitmap_servant::BlockOffset,
-    block_servant::{BlockServantOffsetRange, DataPack},
-    config::{BLOCK_SIZE, FILE_PATH},
+use super::super::{
+    addr::addr::{Addr, BlockAddr},
+    bitmap::bitmap_servant::BlockOffset,
+    block::block_servant::{BlockServantOffsetRange, DataPack},
+    config::config::{BLOCK_SIZE, FILE_PATH},
 };
 
 pub enum IoOption {
@@ -96,7 +96,7 @@ impl FileWriter {
 
 // #[test]
 fn test1() {
-    use crate::sys_utility::file_reader::FileReader;
+    use crate::sys_utility::block::file_reader::FileReader;
 
     let mut f = FileWriter::new(IoOption::Bitmap);
     f.bitmap_write(
@@ -131,7 +131,7 @@ impl AddrRange {
 #[cfg(test)]
 // #[test]
 fn addr_range_test() {
-    use crate::sys_utility::block_servant::{VirtualAddr, VirtualRange};
+    use crate::sys_utility::block::block_servant::{VirtualAddr, VirtualRange};
 
     use super::block_servant::VirtualAddrCount;
     let vr = VirtualRange::with_size(VirtualAddr::new(10), 10000);

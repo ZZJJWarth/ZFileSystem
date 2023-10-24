@@ -5,12 +5,13 @@ use std::{
 };
 
 use crate::sys_utility::{
-    block_servant::BlockServantOffsetRange, config::BLOCK_SIZE, file_writer::AddrRange,
+    block::block_servant::BlockServantOffsetRange, block::file_writer::AddrRange,
+    config::config::BLOCK_SIZE,
 };
 
-use super::{
-    addr::BlockAddr, bitmap_servant::BlockOffset, block_bit_map::BlockBitmap,
-    block_servant::VirtualRange, config::FILE_PATH, file_writer::IoOption,
+use super::super::{
+    addr::addr::BlockAddr, bitmap::bitmap_servant::BlockOffset, bitmap::block_bit_map::BlockBitmap,
+    block::block_servant::VirtualRange, block::file_writer::IoOption, config::config::FILE_PATH,
 };
 #[derive(Debug)]
 pub struct FileReader {

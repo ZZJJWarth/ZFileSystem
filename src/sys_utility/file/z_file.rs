@@ -3,13 +3,16 @@ use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::mem::transmute;
 use std::vec;
 
-use crate::sys_utility::bitmap_servant;
-use crate::sys_utility::config::FILE_PATH;
+use super::super::{
+    addr::addr::BlockAddr,
+    bitmap::block_bit_map::BlockBitmap,
+    block::block_servant::BlockServant,
+    config::config::{BLOCK_SIZE, NON_OCCUPY_NUM},
+};
 
-use super::addr::BlockAddr;
-use super::block_bit_map::BlockBitmap;
-use super::block_servant::BlockServant;
-use super::config::{BLOCK_SIZE, NON_OCCUPY_NUM};
+use crate::sys_utility::bitmap::bitmap_servant;
+use crate::sys_utility::config::config::FILE_PATH;
+
 use super::metadata::Metadata;
 use super::raw_file::{FileType, RawFile};
 const ZFILE_SIZE: usize = 16;
@@ -165,7 +168,7 @@ impl ZFile {
 #[cfg(test)]
 // #[test]
 fn test_zfile() {
-    use crate::sys_utility::block_bit_map::BlockBitmap;
+    use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
 
     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
                                                                        // bit_map.init();
@@ -192,7 +195,7 @@ fn test_zfile() {
 
 #[test]
 fn test_reduce() {
-    use crate::sys_utility::block_bit_map::BlockBitmap;
+    use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
 
     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
     let mut f = ZFile::open(BlockAddr { addr: 53 }).unwrap();

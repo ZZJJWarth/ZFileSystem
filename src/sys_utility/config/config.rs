@@ -1,4 +1,4 @@
-use super::{addr::BlockAddr, block_bit_map::BlockBitmap};
+use super::super::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap};
 
 pub static FILE_PATH: &str = "../test1";
 pub const BLOCK_SIZE: u32 = 1024;
