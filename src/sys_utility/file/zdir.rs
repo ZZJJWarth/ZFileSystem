@@ -2,11 +2,10 @@ use std::mem::transmute;
 
 use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap};
 
-use super::{raw_file::RawFile, raw_f::RawF};
+use super::{raw_file::RawFile, raw_f::RawF, dir_servant::{DirServant, DirItem}};
 #[derive(Debug)]
 struct ZDir{
-    raw:RawFile,
-    num:u32,
+    servant:DirServant
 }
 
 impl ZDir{
@@ -14,7 +13,9 @@ impl ZDir{
     pub fn new()->Self{
         let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
         let b=bit_map.get_free_block().unwrap();
-        let mut zd=ZDir{raw:RawFile::new(super::raw_f::FileType::Dir,b),num:0};
+        let raw=RawFile::new(super::raw_f::FileType::Dir,b);
+        let serve=DirServant::new(raw,0);
+        let mut zd=ZDir{servant:serve};
         zd.write_self();
         zd
     }
@@ -37,7 +38,7 @@ impl ZDir{
     ///关闭一个Dir
     pub fn close(mut self){
         self.write_self();
-        self.raw.close();
+        self.servant.file().close();
     }
 
     pub fn add_file(&mut self,name:&str)->u32{
@@ -51,109 +52,21 @@ impl ZDir{
     fn write_self(&mut self)->Result<(),()>{
         let a=ZDirPack::new(self);
         let a=ZDirPack::into_u8(a).to_vec();
-        self.raw.write(0,&a,ZDirPack::PACK_SIZE)
+        self.servant.file().write(0,&a,ZDirPack::PACK_SIZE)
 
     }
 
     pub fn get_item_num(&self)->u32{
-        self.num
+        self.servant.get_item_num()
     }
 
     pub fn get_block_entry(&self)->BlockAddr{
-        self.raw.get_block_entry()
-    }
-}
-
-struct DirRawItem{
-    flag:u8,
-    reserved:[u8;31],    
-}
-
-impl DirRawItem{
-    const ITEM_SIZE:usize=32;
-    const SHORT_FLAG:u8=0b1111_1111;
-    const NON_USE_FLAG:u8=0b0000_0000;
-    pub fn new(di:DirItem)->DirRawItem{     
-        match di{
-            DirItem::Long(item)=>{
-                unsafe{transmute::<LongDirItem,DirRawItem>(item)}
-            },
-            DirItem::Short(item)=>{
-                unsafe{transmute::<ShortDirItem,DirRawItem>(item)
-            }
-        }
-    }
-}
-
-    pub fn into_dir_item(self)->DirItem{
-        match self.flag{
-            Self::SHORT_FLAG=>{
-                DirItem::Short(unsafe{transmute::<DirRawItem,ShortDirItem>(self)})
-            },
-            _=>{
-                DirItem::Long(unsafe{transmute::<DirRawItem,LongDirItem>(self)})
-            }
-        }
-    }
-
-    pub fn into_u8(self)->[u8;Self::ITEM_SIZE]{
-        unsafe{transmute::<DirRawItem,[u8;Self::ITEM_SIZE]>(self)}
-    }
-
-    pub fn from_u8(data:[u8;Self::ITEM_SIZE])->DirRawItem{
-        unsafe{transmute::<[u8;Self::ITEM_SIZE],DirRawItem>(data)}
+        self.servant.get_block_entry()
     }
 }
 
 
-enum DirItem{
-    Long(LongDirItem),
-    Short(ShortDirItem)
-}
-struct LongDirItem{
-    flag:u8,
-    data:[u8;31],
-}
 
-
-
-struct ShortDirItem{
-    flag:u8,
-    data:ItemData,
-}
-
-impl ShortDirItem{
-    
-}
-
-struct ItemData{
-    addr:[u8;4],
-    name:[u8;27]
-}
-
-impl ItemData{
-    const DATA_SIZE:usize=31;
-    fn new(data:[u8;Self::DATA_SIZE])->ItemData{
-        unsafe{transmute::<[u8;Self::DATA_SIZE],Self>(data)}
-    }
-
-    fn get_name(&self)->[u8;27]{
-        self.name
-    }
-
-    fn get_addr(&self)->BlockAddr{
-        unsafe{transmute::<[u8;4],BlockAddr>(self.addr)}
-    }
-}
-
-struct DirItemAddr{
-    addr:u32,
-}
-
-
-struct DirItemCount{
-    num:u32,
-}
 ///本结构体是为了实现ZDir的转换，
 ///经过转换后，ZDir变成了ZDirPack，ZDirPack会把自己转换成u8数组，以便写入
 struct ZDirPack{
@@ -176,7 +89,8 @@ impl ZDirPack{
         
         let rf=RawFile::open(self.entry).unwrap();    //不能使用new函数！
         let num=self.num;
-        ZDir{raw:rf,num}  
+        let serve=DirServant::new(rf,num);
+        ZDir{servant:serve}  
     }
     ///从u8数组转换成ZDirPack
     fn from_u8(data:[u8;Self::PACK_SIZE as usize])->Self{
