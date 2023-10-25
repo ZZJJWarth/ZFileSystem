@@ -21,7 +21,11 @@ fn main() -> std::io::Result<()> {
     // let a=bf.into_inner().unwrap();
 
     // println!("{:?}",list);
-    let a = fs::read("../test1").unwrap();
-    println!("{:?}", a);
+    use std::io::stdin;
+
+    let mut str=String::new();
+    let si=stdin();
+    si.read_line(&mut str).unwrap();
+    println!("{}",str);
     Ok(())
 }

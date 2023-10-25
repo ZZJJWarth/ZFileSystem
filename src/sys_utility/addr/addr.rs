@@ -61,6 +61,7 @@ impl From<BlockAddr> for Addr {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone, Copy)]
 pub struct BlockAddr {
     pub addr: u32,
+    
 }
 
 impl BlockAddr {

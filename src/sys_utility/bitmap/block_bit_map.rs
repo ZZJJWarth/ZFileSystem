@@ -100,7 +100,8 @@ impl BlockBitmap {
         let mut node = block;
         let mut next = self.get_content(block);
         if (next == END_NUM) {
-            self.set_empty_block(node);
+            return;
+            // self.set_empty_block(node);
         }
 
         while (self.get_content(next) != END_NUM) {

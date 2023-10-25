@@ -1,0 +1,217 @@
+use std::mem::transmute;
+
+use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap};
+
+use super::{raw_file::RawFile, raw_f::RawF};
+#[derive(Debug)]
+struct ZDir{
+    raw:RawFile,
+    num:u32,
+}
+
+impl ZDir{
+    ///无中生有地生成一个ZDir，它会安排好底层block中的所有东西
+    pub fn new()->Self{
+        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let b=bit_map.get_free_block().unwrap();
+        let mut zd=ZDir{raw:RawFile::new(super::raw_f::FileType::Dir,b),num:0};
+        zd.write_self();
+        zd
+    }
+    ///通过一个BlockAddr打开一个ZDir
+    pub fn open(addr:BlockAddr)->Result<Self,()>{
+        let mut f=RawFile::open(addr).unwrap();
+        if(f.get_type()!=super::raw_f::FileType::Dir){
+            println!("this is not a dir!");
+            return Err(());
+        }
+        let mut buf:Vec<u8>=vec![];
+        f.read(0, &mut buf, ZDirPack::PACK_SIZE).unwrap();
+        // println!("{:?}",f);
+        let mut data:[u8;ZDirPack::PACK_SIZE as usize]=[0;ZDirPack::PACK_SIZE as usize];
+        data.copy_from_slice(&buf);
+        let zd=ZDirPack::from_u8(data);
+        let zd=zd.into_zdir();
+        Ok(zd)
+    }
+    ///关闭一个Dir
+    pub fn close(mut self){
+        self.write_self();
+        self.raw.close();
+    }
+
+    pub fn add_file(&mut self,name:&str)->u32{
+        todo!()
+    }
+
+    fn add_item(&mut self,item:DirItem)->Result<(),()>{
+        todo!()
+    }
+    ///很重要的一个函数，它会写入一个Dir的头部，把DirPack写入头部
+    fn write_self(&mut self)->Result<(),()>{
+        let a=ZDirPack::new(self);
+        let a=ZDirPack::into_u8(a).to_vec();
+        self.raw.write(0,&a,ZDirPack::PACK_SIZE)
+
+    }
+
+    pub fn get_item_num(&self)->u32{
+        self.num
+    }
+
+    pub fn get_block_entry(&self)->BlockAddr{
+        self.raw.get_block_entry()
+    }
+}
+
+struct DirRawItem{
+    flag:u8,
+    reserved:[u8;31],    
+}
+
+impl DirRawItem{
+    const ITEM_SIZE:usize=32;
+    const SHORT_FLAG:u8=0b1111_1111;
+    const NON_USE_FLAG:u8=0b0000_0000;
+    pub fn new(di:DirItem)->DirRawItem{     
+        match di{
+            DirItem::Long(item)=>{
+                unsafe{transmute::<LongDirItem,DirRawItem>(item)}
+            },
+            DirItem::Short(item)=>{
+                unsafe{transmute::<ShortDirItem,DirRawItem>(item)
+            }
+        }
+    }
+}
+
+    pub fn into_dir_item(self)->DirItem{
+        match self.flag{
+            Self::SHORT_FLAG=>{
+                DirItem::Short(unsafe{transmute::<DirRawItem,ShortDirItem>(self)})
+            },
+            _=>{
+                DirItem::Long(unsafe{transmute::<DirRawItem,LongDirItem>(self)})
+            }
+        }
+    }
+
+    pub fn into_u8(self)->[u8;Self::ITEM_SIZE]{
+        unsafe{transmute::<DirRawItem,[u8;Self::ITEM_SIZE]>(self)}
+    }
+
+    pub fn from_u8(data:[u8;Self::ITEM_SIZE])->DirRawItem{
+        unsafe{transmute::<[u8;Self::ITEM_SIZE],DirRawItem>(data)}
+    }
+}
+
+
+enum DirItem{
+    Long(LongDirItem),
+    Short(ShortDirItem)
+}
+struct LongDirItem{
+    flag:u8,
+    data:[u8;31],
+}
+
+
+
+struct ShortDirItem{
+    flag:u8,
+    data:ItemData,
+}
+
+impl ShortDirItem{
+    
+}
+
+struct ItemData{
+    addr:[u8;4],
+    name:[u8;27]
+}
+
+impl ItemData{
+    const DATA_SIZE:usize=31;
+    fn new(data:[u8;Self::DATA_SIZE])->ItemData{
+        unsafe{transmute::<[u8;Self::DATA_SIZE],Self>(data)}
+    }
+
+    fn get_name(&self)->[u8;27]{
+        self.name
+    }
+
+    fn get_addr(&self)->BlockAddr{
+        unsafe{transmute::<[u8;4],BlockAddr>(self.addr)}
+    }
+}
+
+struct DirItemAddr{
+    addr:u32,
+}
+
+
+struct DirItemCount{
+    num:u32,
+}
+///本结构体是为了实现ZDir的转换，
+///经过转换后，ZDir变成了ZDirPack，ZDirPack会把自己转换成u8数组，以便写入
+struct ZDirPack{
+    num:u32,
+    entry:BlockAddr,
+}
+
+impl ZDirPack{
+    ///本常量表示ZDirPack的size
+    pub const PACK_SIZE:u32=8;
+
+    ///输入一个ZDir，输出一个ZDirPack，ZDirPack有利于转换u8数组
+    fn new(zd:&ZDir)->Self{
+        let n=zd.get_item_num();
+        let entry=zd.get_block_entry();
+        Self{num:n,entry}
+    }
+    ///消耗ZDirPack，生成ZDir
+    fn into_zdir(self)->ZDir{
+        
+        let rf=RawFile::open(self.entry).unwrap();    //不能使用new函数！
+        let num=self.num;
+        ZDir{raw:rf,num}  
+    }
+    ///从u8数组转换成ZDirPack
+    fn from_u8(data:[u8;Self::PACK_SIZE as usize])->Self{
+        unsafe{
+            transmute::<[u8;Self::PACK_SIZE as usize],Self>(data)
+    }
+    }
+    ///从ZDirPack转换成u8数组
+    fn into_u8(data:Self)->[u8;Self::PACK_SIZE as usize]{
+        unsafe{
+            transmute::<Self,[u8;Self::PACK_SIZE as usize]>(data)
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_new(){
+    let zd=ZDir::new();
+    println!("{:?}",zd);
+    zd.close();
+}
+
+#[test]
+fn test_open(){
+    let zd=ZDir::open(BlockAddr { addr: 82 }).unwrap();
+    println!("{:?}",zd);
+    zd.close();
+}
+
+#[test]
+fn test_see(){
+    let mut rf=RawFile::open(BlockAddr { addr: 83 }).unwrap();
+    let mut buf:Vec<u8>=vec![];
+    rf.read(0, &mut buf, ZDirPack::PACK_SIZE);
+    println!("{:?}",buf);
+    
+}
