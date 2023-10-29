@@ -23,9 +23,9 @@ fn main() -> std::io::Result<()> {
     // println!("{:?}",list);
     use std::io::stdin;
 
-    let mut str=String::new();
-    let si=stdin();
+    let mut str = String::new();
+    let si = stdin();
     si.read_line(&mut str).unwrap();
-    println!("{}",str);
+    println!("{}", str);
     Ok(())
 }

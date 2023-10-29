@@ -1,6 +1,6 @@
 use super::metadata::Metadata;
 
-#[derive(Debug, Clone, Copy,PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
     File,
     Dir,

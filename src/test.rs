@@ -12,9 +12,9 @@ struct Test {
 fn test_main() {
     use std::io::stdin;
 
-    let mut str=String::new();
-    let si=stdin();
+    let mut str = String::new();
+    let si = stdin();
     si.read_line(&mut str).unwrap();
-    println!("{}",str);
+    println!("{}", str);
 }
 //0100 0011 1010 1001 1100 1100 0010 0010

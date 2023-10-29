@@ -35,7 +35,7 @@ impl RawF for RawFile {
 
 impl RawFile {
     ///给定一个空闲块，返回一个ZFile
-    pub fn new( file_type: FileType, block_entry: BlockAddr) -> RawFile {
+    pub fn new(file_type: FileType, block_entry: BlockAddr) -> RawFile {
         let mut f = RawFile {
             metadata: Metadata::new(0, BLOCK_SIZE),
             block_servant: BlockServant::new(block_entry),
@@ -166,70 +166,70 @@ impl RawFile {
         self.raw_write(offset, buf, size)
     }
 
-    pub fn del_init(&mut self){
-        let i=self.metadata.get_max_len()/BLOCK_SIZE;
+    pub fn del_init(&mut self) {
+        let i = self.metadata.get_max_len() / BLOCK_SIZE;
         let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-        for j in 0..i{
+        for j in 0..i {
             bit_map.reduce_a_block(self.block_servant.entry);
         }
-
-
     }
 
-    pub fn get_block_entry(&self)->BlockAddr{{
-        self.block_servant.entry
+    pub fn get_block_entry(&self) -> BlockAddr {
+        {
+            self.block_servant.entry
+        }
+    }
+
+    #[cfg(test)]
+    // #[test]
+    fn test_zfile() {
+        use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
+
+        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+                                                                           // bit_map.init();
+                                                                           // println!("content a:{:?}", bit_map.get_content(BlockAddr { addr: 2 }));
+        let a = bit_map.get_free_block().unwrap();
+        let mut f = RawFile::new(FileType::File, a);
+        // let mut f=ZFile::open(BlockAddr { addr: 28}).unwrap();
+        println!("{:?}", f);
+        // f.reduce(10);
+        // println!("{:?}",f);
+        // let buf:Vec<u8>=vec![1;1024];
+        // f.write(0, &buf, 1024);
+
+        // let buf:Vec<u8>=vec![2;10240];
+        // f.write(4096, &buf, 10240);
+        // println!("{:?}",f);
+        // let mut buf2:Vec<u8>=vec![];
+        // f.read(0, &mut buf2, 5120);
+        // println!("{:?}",buf2);
+        f.close();
+        // let mut f=ZFile::open(BlockAddr { addr: 2 }).unwrap();
+        // println!("{:?}",f);
+    }
+
+    // #[test]
+    fn test_reduce() {
+        use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
+
+        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut f = RawFile::open(BlockAddr { addr: 53 }).unwrap();
+
+        let mut v: Vec<u8> = vec![1; 15000];
+        // f.add_write(&v, 15000);
+        // let mut a:Vec<u8>=vec![];
+        // f.read(30000, &mut a, 10);
+        // println!("{:?}",a);
+        println!("{:?}", f);
+        f.reduce(15000);
+        println!("{:?}", f);
+        f.close();
     }
 }
-
-#[cfg(test)]
-// #[test]
-fn test_zfile() {
-    use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
-
-    let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-                                                                       // bit_map.init();
-                                                                       // println!("content a:{:?}", bit_map.get_content(BlockAddr { addr: 2 }));
-    let a = bit_map.get_free_block().unwrap();
-    let mut f = RawFile::new( FileType::File, a);
-    // let mut f=ZFile::open(BlockAddr { addr: 28}).unwrap();
-    println!("{:?}", f);
-    // f.reduce(10);
-    // println!("{:?}",f);
-    // let buf:Vec<u8>=vec![1;1024];
-    // f.write(0, &buf, 1024);
-
-    // let buf:Vec<u8>=vec![2;10240];
-    // f.write(4096, &buf, 10240);
-    // println!("{:?}",f);
-    // let mut buf2:Vec<u8>=vec![];
-    // f.read(0, &mut buf2, 5120);
-    // println!("{:?}",buf2);
-    f.close();
-    // let mut f=ZFile::open(BlockAddr { addr: 2 }).unwrap();
-    // println!("{:?}",f);
-}
-
-// #[test]
-fn test_reduce() {
-    use crate::sys_utility::bitmap::block_bit_map::BlockBitmap;
-
-    let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-    let mut f = RawFile::open(BlockAddr { addr: 53 }).unwrap();
-
-    let mut v: Vec<u8> = vec![1; 15000];
-    // f.add_write(&v, 15000);
-    // let mut a:Vec<u8>=vec![];
-    // f.read(30000, &mut a, 10);
-    // println!("{:?}",a);
-    println!("{:?}", f);
-    f.reduce(15000);
-    println!("{:?}", f);
-    f.close();
-}}
 
 #[test]
-fn test1_open(){
-    let f=RawFile::open(BlockAddr { addr: 82 }).unwrap();
-    println!("{:?}",f);
+fn test1_open() {
+    let f = RawFile::open(BlockAddr { addr: 82 }).unwrap();
+    println!("{:?}", f);
     f.clone();
 }
