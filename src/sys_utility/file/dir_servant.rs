@@ -74,6 +74,7 @@ impl DirServant {
             panic!();
         }
         let mut buf: Vec<u8> = vec![];
+
         self.raw
             .read(addr.get_offset(), &mut buf, DirRawItem::ITEM_SIZE as u32)?;
         let mut temp: [u8; DirRawItem::ITEM_SIZE as usize] = [0; DirRawItem::ITEM_SIZE as usize];
@@ -83,11 +84,11 @@ impl DirServant {
         Ok(DirRawItem::from_u8(temp))
     }
     ///输入一个文件名，向文件夹中插入一个diritem
-    fn new_dir_item(&mut self, name: &str, entry: BlockAddr) -> Result<(), ()> {
+    pub fn new_dir_item(&mut self, name: &str, entry: BlockAddr) -> Result<(), ()> {
         let generator = DirItemGenerateIter::new(name, entry);
 
         let mut item_addr = self.find_emtpy_gap(generator.len() as u32);
-
+        // println!("{:?}",item_addr);
         for i in generator {
             let item = DirRawItem::new(i);
             self.insert_item(item, item_addr);
@@ -96,13 +97,16 @@ impl DirServant {
         Ok(())
     }
 
-    fn command_ls(&mut self) {
+    pub fn command_ls(&mut self) {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
+            // println!("{:?}",i);
             let temp = self.get_item(i).unwrap().into_dir_item();
             match temp {
                 DirItem::Short(item) => {
                     //todo:这里需要完成一个function，使得我可以输入ShortDirItem和它的Addr就可以获取全部文件名
+                    let str = self.get_name(i);
+                    print!("{}\t", str);
                 }
                 _ => {
                     continue;
@@ -111,10 +115,59 @@ impl DirServant {
         }
     }
 
-    fn get_name(&mut self, head: ShortDirItem, addr: ItemAddr) -> Vec<char> {
-        let ans: Vec<char> = vec![];
+    pub fn get_name(&mut self, addr: ItemAddr) -> String {
+        let list = self.get_name_raw(addr);
+        let a = list.iter().map(|x| *x as char).collect::<Vec<_>>();
+        a.iter().collect()
+    }
 
-        ans
+    fn get_name_raw(&mut self, addr: ItemAddr) -> Vec<u8> {
+        let mut current = self.get_item(addr).unwrap().into_dir_item();
+        let mut addr = addr;
+        let mut ans: Vec<Vec<u8>> = vec![];
+        let mut count = 0;
+        let mut short_flag = false;
+        loop {
+            count += 1;
+            if count > 100 {
+                panic!("死循环了可能");
+            }
+            match self.get_flag(addr) {
+                DirRawItem::LONG_END_FLAG => {
+                    let temp = current.get_name().unwrap();
+                    ans.push(temp);
+                    break;
+                }
+                DirRawItem::NON_USE_FLAG => {
+                    break;
+                }
+                DirRawItem::SHORT_FLAG => {
+                    if short_flag {
+                        break;
+                    } else {
+                        short_flag = true;
+                        let temp = current.get_name().unwrap();
+                        ans.push(temp);
+                        addr.step();
+                        current = self.get_item(addr).unwrap().into_dir_item();
+                    }
+                }
+                _ => {
+                    let temp = current.get_name().unwrap();
+                    ans.push(temp);
+                    addr.step();
+                    current = self.get_item(addr).unwrap().into_dir_item();
+                }
+            }
+        }
+
+        ans.concat()
+    }
+
+    fn get_flag(&mut self, addr: ItemAddr) -> u8 {
+        let item = self.get_item(addr).unwrap().into_dir_item();
+
+        item.get_flag().unwrap()
     }
 
     ///根据所需要的长度，找到一块连续的空间，并返回首地址
@@ -156,7 +209,7 @@ impl ItemAddr {
     }
 
     fn get_offset(&self) -> u32 {
-        self.addr * DirRawItem::ITEM_SIZE as u32 + DirServant::HEAD_RESERVE_SIZE as u32
+        self.addr * DirRawItem::ITEM_SIZE as u32 /*+ DirServant::HEAD_RESERVE_SIZE as u32*/
     }
 
     fn get_addr(&self) -> u32 {
@@ -272,6 +325,25 @@ pub enum DirItem {
     Short(ShortDirItem),
     None,
 }
+
+impl DirItem {
+    fn get_name(self) -> Result<Vec<u8>, ()> {
+        match self {
+            DirItem::Long(item) => Ok(item.get_name_zone()),
+            DirItem::Short(item) => Ok(item.get_name_zone()),
+            DirItem::None => Err(()),
+        }
+    }
+
+    fn get_flag(self) -> Result<u8, ()> {
+        match self {
+            DirItem::Long(item) => Ok(item.get_flag()),
+            DirItem::Short(item) => Ok(item.get_flag()),
+            DirItem::None => Ok(DirRawItem::NON_USE_FLAG),
+        }
+    }
+}
+
 ///用于根据一个字符串来产生DirItem的串
 /// 它的用法是：输入一个字符串和入口，然后生成一个待写入的迭代器，迭代器每迭代一次，都会吐出一个你要写入的项
 pub struct DirItemGenerateIter {
@@ -354,6 +426,20 @@ impl LongDirItem {
             data,
         }
     }
+    pub fn get_name_zone(&self) -> Vec<u8> {
+        let mut ans: Vec<u8> = vec![];
+        for i in self.data {
+            if i == 0 {
+                break;
+            }
+            ans.push(i);
+        }
+        ans
+    }
+
+    pub fn get_flag(self) -> u8 {
+        self.flag
+    }
 }
 
 ///short字符串存储着文件入口以及一部分的名字，名字字段有27个字节
@@ -374,10 +460,23 @@ impl ShortDirItem {
         ShortDirItem { flag, data }
     }
 
-    pub fn get_name_zone(&self) -> Vec<char> {}
+    pub fn get_name_zone(&self) -> Vec<u8> {
+        let mut ans: Vec<u8> = vec![];
+        for i in self.data.get_name() {
+            if (i == 0) {
+                break;
+            }
+            ans.push(i);
+        }
+        ans
+    }
 
     pub fn entry(&self) -> BlockAddr {
         unsafe { transmute::<[u8; 4], BlockAddr>(self.data.addr) }
+    }
+
+    pub fn get_flag(self) -> u8 {
+        self.flag
     }
 }
 
@@ -466,8 +565,23 @@ fn test_api() {
 
 #[test]
 fn test_diritem_generator() {
-    let gen=DirItemGenerateIter::new("hello world hell4434534534245245785785785785785785785785785785785345systemhhhhhhhhhhhhhhhhhhhhhhhhhhhhh",BlockAddr { addr: 100 });
+    let gen = DirItemGenerateIter::new("hello world", BlockAddr { addr: 100 });
     for i in gen {
         println!("{:?}", i);
     }
+}
+
+#[test]
+fn test_get_name() {
+    let raw = RawFile::open(BlockAddr { addr: 97 }).unwrap();
+    let mut serve = DirServant::new(raw, 30);
+    // serve.new_dir_item("ABCD", BlockAddr { addr: 251 });
+    // serve.new_dir_item("ABCDd", BlockAddr { addr: 251 });
+    // serve.new_dir_item("ABCDd", BlockAddr { addr: 251 });
+    // serve.new_dir_item("ABCDd", BlockAddr { addr: 251 });
+    // serve.new_dir_item("ABCDd", BlockAddr { addr: 251 });
+
+    let ans = serve.get_name(ItemAddr { addr: 8 });
+    println!("{:?}", ans);
+    serve.command_ls();
 }

@@ -67,6 +67,14 @@ impl ZDir {
     pub fn get_block_entry(&self) -> BlockAddr {
         self.servant.get_block_entry()
     }
+
+    pub fn ls(&mut self) {
+        self.servant.command_ls();
+    }
+
+    pub fn insert_item(&mut self, name: &str, entry: BlockAddr) -> Result<(), ()> {
+        self.servant.new_dir_item(name, entry)
+    }
 }
 
 ///本结构体是为了实现ZDir的转换，
@@ -113,7 +121,7 @@ fn test_new() {
 
 #[test]
 fn test_open() {
-    let zd = ZDir::open(BlockAddr { addr: 83 }).unwrap();
+    let zd = ZDir::open(BlockAddr { addr: 96 }).unwrap();
     println!("{:?}", zd);
     zd.close();
 }
@@ -124,4 +132,24 @@ fn test_see() {
     let mut buf: Vec<u8> = vec![];
     rf.read(0, &mut buf, ZDirPack::PACK_SIZE);
     println!("{:?}", buf);
+}
+
+#[test]
+fn test_dir_item() {
+    let mut zd = ZDir::open(BlockAddr { addr: 115 }).unwrap();
+    // zd.insert_item("hello China1", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China2", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China3", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China4", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China5", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China6", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China7", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China8", BlockAddr { addr: 0 }).unwrap();
+    // zd.insert_item("hello China9", BlockAddr { addr: 0 }).unwrap();
+    zd.insert_item(
+        "this is a long long long long long long long long long long item!",
+        BlockAddr { addr: 0 },
+    )
+    .unwrap();
+    zd.ls();
 }
