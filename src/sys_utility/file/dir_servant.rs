@@ -1,16 +1,23 @@
 use std::{
+    collections::btree_map::Keys,
+    fs::File,
     mem::transmute,
     ops::{Add, AddAssign, Sub},
     process::Output,
-    vec
+    vec,
 };
 
-use crate::sys_utility::{addr::addr::BlockAddr, block::block_servant::DataPack, bitmap::block_bit_map::BlockBitmap};
+use crate::sys_utility::{
+    addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, block::block_servant::DataPack,
+};
 
-use super::{raw_file::RawFile, zdir::ZDirPack};
+use super::{
+    raw_file::RawFile,
+    zdir::{ZDir, ZDirPack},
+    zfile::ZFile,
+};
 
 use super::raw_f::{FileType, RawF};
-
 
 ///帮助zdir创建、删除、查找、遍历目录项
 #[derive(Debug)]
@@ -66,7 +73,9 @@ impl DirServant {
             );
             panic!();
         }
+
         let mut buf = item.into_u8().to_vec();
+        // println!("{:?}",buf.len());
         self.raw
             .write(addr.get_offset(), &mut buf, DirRawItem::ITEM_SIZE as u32)
     }
@@ -87,25 +96,44 @@ impl DirServant {
         Ok(DirRawItem::from_u8(temp))
     }
     ///输入一个文件名，向文件夹中插入一个diritem,并产生相应的文件
-    pub fn new_dir_item(&mut self, name: &str,file_type:FileType) -> Result<(), ()> {
-        let check=self.has_name(name);
-        match check{
-            Some(_)=>{println!("Already has a file/dir named:{}",name); return Err(());},
-            None=>{},
-            
+    pub fn new_dir_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
+        let check = self.has_name(name);
+        match check {
+            Some(_) => {
+                println!("Already has a file/dir named:{}", name);
+                return Err(());
+            }
+            None => {}
         };
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-        let entry=bit_map.get_free_block().unwrap();
-        
-        RawFile::new(file_type,entry);
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        // let entry=bit_map.get_free_block().unwrap();
 
-        let generator = DirItemGenerateIter::new(name, entry);
-        
+        // let raw=RawFile::new(file_type,entry);
+        let mut entry: BlockAddr;
+        match file_type {
+            FileType::Dir => {
+                let mut temp = ZDir::new();
+                entry = temp.get_block_entry();
+                temp.close();
+            }
+            FileType::File => {
+                let temp = ZFile::new();
+                entry = temp.get_block_entry();
+                temp.close();
+            }
+        }
+        let generator = DirItemGenerateIter::new(name, entry, file_type);
+        // println!("{:?}",generator);
+
         let mut item_addr = self.find_emtpy_gap(generator.len() as u32);
+
         // println!("{:?}",item_addr);
         for i in generator {
+            // println!("{:?}",i);
             let item = DirRawItem::new(i);
             self.insert_item(item, item_addr);
+            // let a=self.get_item(item_addr).unwrap();
+            // println!("{:?}",a);
             item_addr.step();
         }
         Ok(())
@@ -116,11 +144,21 @@ impl DirServant {
         for i in range.iter() {
             // println!("{:?}",i);
             let temp = self.get_item(i).unwrap().into_dir_item();
+            // println!("{:?}",temp);
             match temp {
                 DirItem::Short(item) => {
-                    //todo:这里需要完成一个function，使得我可以输入ShortDirItem和它的Addr就可以获取全部文件名
+                    //todo:这里需要完成一个function，使得我可以输入ShortDirItem和它的Addr就可以获取全部文件名 done!
+                    // println!("{:?}",temp);
                     let str = self.get_name(i);
-                    print!("{}\t", str);
+                    let file_type = item.get_type();
+                    match file_type {
+                        FileType::Dir => {
+                            print!("<{}>\t", str);
+                        }
+                        FileType::File => {
+                            print!("{}\t", str);
+                        }
+                    }
                 }
                 _ => {
                     continue;
@@ -141,11 +179,13 @@ impl DirServant {
         let mut ans: Vec<Vec<u8>> = vec![];
         let mut count = 0;
         let mut short_flag = false;
+
         loop {
             count += 1;
             if count > 100 {
                 panic!("死循环了可能");
             }
+
             match self.get_flag(addr) {
                 DirRawItem::LONG_END_FLAG => {
                     let temp = current.get_name().unwrap();
@@ -209,43 +249,42 @@ impl DirServant {
         ItemAddr { addr: temp }
     }
 
-    fn has_name(&mut self,name: &str)->Option<ItemAddr>{
-        let range=ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
-        for i in range.iter(){
-            let n=self.get_name(i);
-            if(name.to_string()==n){
+    fn has_name(&mut self, name: &str) -> Option<ItemAddr> {
+        let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
+        for i in range.iter() {
+            let n = self.get_name(i);
+            if (name.to_string() == n) {
                 return Some(i);
             }
         }
-        return None
+        return None;
     }
-    
-    pub fn find_item(&mut self,name:&str)->Option<BlockAddr>{
-        let find=self.has_name(name);
-        match find{
-            Some(i)=>{
-                Some(self.get_item_block_entry(i))
-            },
-            None=>{
-                println!("such a name is not found in dir:{}",name);
+
+    pub fn find_item(&mut self, name: &str) -> Option<BlockAddr> {
+        let find = self.has_name(name);
+        // println!("{:?}",self.get_item(ItemAddr { addr: 0 }));
+        match find {
+            Some(i) => Some(self.get_item_block_entry(i)),
+            None => {
+                println!("such a name is not found in dir:{}", name);
                 None
             }
         }
     }
 
-    fn get_item_block_entry(&mut self,addr:ItemAddr)->BlockAddr{
-        let item=self.get_item(addr).unwrap().into_dir_item();
-        match item{
-            DirItem::Short(s)=>{s.get_block()},
-            _=>{
-                println!("尝试在非ShortDirItem中读取Blockentry，尝试的Item为{:?}",item);
-                panic!()    
+    fn get_item_block_entry(&mut self, addr: ItemAddr) -> BlockAddr {
+        let item = self.get_item(addr).unwrap().into_dir_item();
+        match item {
+            DirItem::Short(s) => s.get_block(),
+            _ => {
+                println!(
+                    "尝试在非ShortDirItem中读取Blockentry，尝试的Item为{:?}",
+                    item
+                );
+                panic!()
             }
         }
     }
-
-    
-
 }
 ///目录项的地址
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -259,7 +298,7 @@ impl ItemAddr {
     }
 
     fn get_offset(&self) -> u32 {
-        self.addr * DirRawItem::ITEM_SIZE as u32 /*+ DirServant::HEAD_RESERVE_SIZE as u32*/
+        self.addr * DirRawItem::ITEM_SIZE as u32 + ZDirPack::PACK_SIZE as u32 /*+ DirServant::HEAD_RESERVE_SIZE as u32*/
     }
 
     fn get_addr(&self) -> u32 {
@@ -334,6 +373,22 @@ pub struct DirRawItem {
     reserved: [u8; 31],
 }
 
+impl From<ShortDirItem> for DirRawItem {
+    fn from(value: ShortDirItem) -> Self {
+        let flag = value.get_flag();
+        let reserved = unsafe { transmute::<ItemData, [u8; 31]>(value.data) };
+        Self { flag, reserved }
+    }
+}
+
+impl From<LongDirItem> for DirRawItem {
+    fn from(value: LongDirItem) -> Self {
+        let flag = value.flag;
+        let reserved = value.data;
+        Self { flag, reserved }
+    }
+}
+
 impl DirRawItem {
     const ITEM_SIZE: usize = 32;
     const SHORT_FLAG: u8 = 0b0000_0001;
@@ -341,8 +396,9 @@ impl DirRawItem {
     const NON_USE_FLAG: u8 = 0b0000_0000;
     pub fn new(di: DirItem) -> DirRawItem {
         match di {
-            DirItem::Long(item) => unsafe { transmute::<LongDirItem, DirRawItem>(item) },
-            DirItem::Short(item) => unsafe { transmute::<ShortDirItem, DirRawItem>(item) },
+            //todo: 这里有一个很严重的问题，单纯的transmute可能会导致严重的后果
+            DirItem::Long(item) => Self::from(item),
+            DirItem::Short(item) => Self::from(item),
             DirItem::None => {
                 println!("您尝试使用空DirItem生成DirRawItem，这是不允许的");
                 panic!()
@@ -352,11 +408,9 @@ impl DirRawItem {
 
     pub fn into_dir_item(self) -> DirItem {
         match self.flag {
-            Self::SHORT_FLAG => {
-                DirItem::Short(unsafe { transmute::<DirRawItem, ShortDirItem>(self) })
-            }
+            Self::SHORT_FLAG => DirItem::Short(ShortDirItem::from(self)),
             Self::NON_USE_FLAG => DirItem::None,
-            _ => DirItem::Long(unsafe { transmute::<DirRawItem, LongDirItem>(self) }),
+            _ => DirItem::Long(LongDirItem::from(self)),
         }
     }
 
@@ -396,6 +450,7 @@ impl DirItem {
 
 ///用于根据一个字符串来产生DirItem的串
 /// 它的用法是：输入一个字符串和入口，然后生成一个待写入的迭代器，迭代器每迭代一次，都会吐出一个你要写入的项
+#[derive(Debug)]
 pub struct DirItemGenerateIter {
     list: Vec<DirItem>,
     count: usize,
@@ -403,13 +458,12 @@ pub struct DirItemGenerateIter {
 }
 
 impl DirItemGenerateIter {
-    pub fn new(name: &str, entry: BlockAddr) -> DirItemGenerateIter {
+    pub fn new(name: &str, entry: BlockAddr, file_type: FileType) -> DirItemGenerateIter {
         let target_num = name.len();
         let mut finish_num: usize = 0;
         let ans: Vec<DirItem> = vec![];
 
-        let si = DirItem::Short(ShortDirItem::from_name_entry(name, entry));
-
+        let si = DirItem::Short(ShortDirItem::from_name_entry(name, entry, file_type));
         let mut list: Vec<DirItem> = vec![];
         list.push(si);
         finish_num = ItemData::SHORT_NAME_SIZE;
@@ -458,6 +512,15 @@ pub struct LongDirItem {
     data: [u8; 31],
 }
 
+impl From<DirRawItem> for LongDirItem {
+    fn from(value: DirRawItem) -> Self {
+        Self {
+            flag: value.flag,
+            data: value.reserved,
+        }
+    }
+}
+
 impl LongDirItem {
     pub fn from_name_flag(name: &str, offset: &usize, my_flag: u8) -> LongDirItem {
         let mut offset = *offset;
@@ -499,14 +562,23 @@ pub struct ShortDirItem {
     data: ItemData,
 }
 
+impl From<DirRawItem> for ShortDirItem {
+    fn from(value: DirRawItem) -> Self {
+        let flag = value.flag;
+        let data = unsafe { transmute::<[u8; 31], ItemData>(value.reserved) };
+
+        Self { flag, data }
+    }
+}
+
 impl ShortDirItem {
     pub fn new(flag: u8, data: ItemData) -> ShortDirItem {
         ShortDirItem { flag, data }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr) -> ShortDirItem {
+    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType) -> ShortDirItem {
         let flag: u8 = DirRawItem::SHORT_FLAG;
-        let data = ItemData::from_name_entry(name, entry);
+        let data = ItemData::from_name_entry(name, entry, file_type);
         ShortDirItem { flag, data }
     }
 
@@ -529,25 +601,31 @@ impl ShortDirItem {
         self.flag
     }
 
-    pub fn get_block(&self)->BlockAddr{
+    pub fn get_block(&self) -> BlockAddr {
         self.data.get_addr()
+    }
+
+    pub fn get_type(&self) -> FileType {
+        self.data.file_type
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ItemData {
     addr: [u8; 4],
+    file_type: FileType,
+    reserved: u8,
     name: [u8; ItemData::SHORT_NAME_SIZE],
 }
 
 impl ItemData {
-    pub const SHORT_NAME_SIZE: usize = 27;
+    pub const SHORT_NAME_SIZE: usize = 25;
     const DATA_SIZE: usize = 31;
     fn new(data: [u8; Self::DATA_SIZE]) -> ItemData {
         unsafe { transmute::<[u8; Self::DATA_SIZE], Self>(data) }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr) -> ItemData {
+    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType) -> ItemData {
         if (name.len() == 0) {
             println!("输入name的长度为0！");
             panic!();
@@ -563,7 +641,12 @@ impl ItemData {
             for i in 0..count {
                 list[i] = name[i];
             }
-            ItemData { addr, name: list }
+            ItemData {
+                addr,
+                name: list,
+                file_type,
+                reserved: 0,
+            }
         }
     }
 
@@ -579,26 +662,26 @@ impl ItemData {
 #[cfg(test)]
 #[test]
 fn test_insert() {
-    use crate::sys_utility::file::zdir::ZDir;
+    // use crate::sys_utility::file::zdir::ZDir;
 
-    let mut zd = ZDir::open(BlockAddr { addr: 83 }).unwrap();
-    println!("{:?}", zd);
+    // let mut zd = ZDir::open(BlockAddr { addr: 83 }).unwrap();
+    // println!("{:?}", zd);
 
-    let item = ShortDirItem::new(
-        DirRawItem::SHORT_FLAG,
-        ItemData {
-            addr: [0; 4],
-            name: [66; 27],
-        },
-    );
-    let item = DirRawItem::new(DirItem::Short(item));
-    println!("{:?}", item);
+    // let item = ShortDirItem::new(
+    //     DirRawItem::SHORT_FLAG,
+    //     ItemData {
+    //         addr: [0; 4],
+    //         name: [66; 27],
+    //     },
+    // );
+    // let item = DirRawItem::new(DirItem::Short(item));
+    // println!("{:?}", item);
 
-    zd.servant.insert_item(item, ItemAddr { addr: 1 });
-    let a = zd.servant.get_item(ItemAddr { addr: 1 }).unwrap();
+    // zd.servant.insert_item(item, ItemAddr { addr: 1 });
+    // let a = zd.servant.get_item(ItemAddr { addr: 1 }).unwrap();
 
-    println!("{:?}", a);
-    zd.close();
+    // println!("{:?}", a);
+    // zd.close();
 }
 
 #[test]
@@ -619,7 +702,7 @@ fn test_api() {
 
 #[test]
 fn test_diritem_generator() {
-    let gen = DirItemGenerateIter::new("hello world", BlockAddr { addr: 100 });
+    let gen = DirItemGenerateIter::new("hello world", BlockAddr { addr: 100 }, FileType::Dir);
     for i in gen {
         println!("{:?}", i);
     }

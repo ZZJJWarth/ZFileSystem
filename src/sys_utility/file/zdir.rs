@@ -1,10 +1,12 @@
 use std::mem::transmute;
 
-use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap};
+use crate::sys_utility::{
+    addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, file::zfile::ZFile,
+};
 
 use super::{
     dir_servant::{DirItem, DirServant},
-    raw_f::{RawF, FileType},
+    raw_f::{FileType, RawF},
     raw_file::RawFile,
 };
 #[derive(Debug)]
@@ -24,6 +26,12 @@ impl ZDir {
         zd.write_self();
         zd
     }
+
+    pub fn init_raw(raw: RawFile) {
+        let mut serve = DirServant::new(raw, 0);
+        serve.init();
+    }
+
     ///通过一个BlockAddr打开一个ZDir
     pub fn open(addr: BlockAddr) -> Result<Self, ()> {
         let mut f = RawFile::open(addr).unwrap();
@@ -72,16 +80,13 @@ impl ZDir {
         self.servant.command_ls();
     }
 
-    pub fn insert_item(&mut self, name: &str,file_type:FileType) -> Result<(), ()> {
-        self.servant.new_dir_item(name,file_type)
+    pub fn insert_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
+        self.servant.new_dir_item(name, file_type)
     }
 
-    pub fn get_item_block_entry(&mut self,name:&str)->BlockAddr{
-        self.servant.find_item(name).unwrap()
+    pub fn get_item_block_entry(&mut self, name: &str) -> Option<BlockAddr> {
+        self.servant.find_item(name)
     }
-
-    
-    
 }
 
 ///本结构体是为了实现ZDir的转换，
@@ -128,7 +133,7 @@ fn test_new() {
 
 #[test]
 fn test_open() {
-    let zd = ZDir::open(BlockAddr { addr: 96 }).unwrap();
+    let zd = ZDir::open(BlockAddr { addr: 211 }).unwrap();
     println!("{:?}", zd);
     zd.close();
 }
@@ -163,10 +168,18 @@ fn test_dir_item() {
 }
 
 #[test]
-fn test_item(){
-    let mut zd=ZDir::open(BlockAddr::new(120)).unwrap();
-    // zd.insert_item("hello");
+fn test_item() {
+    let mut zd = ZDir::open(BlockAddr::new(212)).unwrap();
+    // println!("{:?}",zd);
+    // zd.insert_item("File1", FileType::File);
     zd.ls();
-    println!("hello's entry is :{:?}",zd.get_item_block_entry("hello"));
+    println!("\nDir1's entry is {:?}", zd.get_item_block_entry("File1"));
+    let addr = zd.get_item_block_entry("File1").unwrap();
+    let mut zd1 = ZFile::open(addr);
+    // zd1.char_write(0, 1, vec!['h']);
+    println!("{:?}", zd1.char_read(0, 1));
+    zd1.close();
+    // println!("hello's entry is :{:?}",zd.get_item_block_entry("File6"));
+    // println!("{:?}",zd);
     zd.close();
 }

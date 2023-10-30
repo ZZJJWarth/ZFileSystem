@@ -20,6 +20,7 @@ impl BlockServant {
     }
 
     pub fn write(&self, offset: u32, data: &Vec<u8>, size: u32) -> Result<(), ()> {
+        // println!("offset:{}",offset);
         let mut fw = FileWriter::new(super::file_writer::IoOption::Other(BLOCK_SIZE));
         let mut ptr = data.as_slice();
 

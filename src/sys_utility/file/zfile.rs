@@ -2,7 +2,7 @@ use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitm
 
 use super::raw_file::RawFile;
 #[derive(Debug)]
-struct ZFile {
+pub struct ZFile {
     raw: RawFile,
 }
 
@@ -23,6 +23,11 @@ impl ZFile {
 
     pub fn close(mut self) {
         self.raw.close();
+    }
+
+    pub fn init_raw(raw: RawFile) {
+        let f = ZFile { raw };
+        f.close();
     }
 
     pub fn char_read(&mut self, offset: u32, size: u32) -> Vec<char> {
@@ -46,6 +51,10 @@ impl ZFile {
 
     pub fn reduce(&mut self, size: u32) {
         self.raw.reduce(size);
+    }
+
+    pub fn get_block_entry(&self) -> BlockAddr {
+        self.raw.get_block_entry()
     }
 }
 

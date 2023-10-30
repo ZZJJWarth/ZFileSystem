@@ -68,6 +68,7 @@ impl RawFile {
     }
 
     pub fn write(&mut self, offset: u32, buf: &Vec<u8>, size: u32) -> Result<(), ()> {
+        // println!("{:?}",buf);
         let offset = offset + ZFILE_SIZE as u32;
         self.raw_write(offset, buf, size)
     }
@@ -87,7 +88,8 @@ impl RawFile {
         self.metadata.set_max_len(max_len);
         // println!("write:{{offset:{},size:{}}}",offset,size);
         // println!("self:{{{:?}}}",self);
-        self.block_servant.write(offset, buf, size);
+        // println!("{:?}",buf);
+        self.block_servant.write(offset, buf, size).unwrap();
         let max = if now_len < size + offset {
             size + offset
         } else {
