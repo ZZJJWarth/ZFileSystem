@@ -4,7 +4,7 @@ use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitm
 
 use super::{
     dir_servant::{DirItem, DirServant},
-    raw_f::RawF,
+    raw_f::{RawF, FileType},
     raw_file::RawFile,
 };
 #[derive(Debug)]
@@ -72,9 +72,16 @@ impl ZDir {
         self.servant.command_ls();
     }
 
-    pub fn insert_item(&mut self, name: &str, entry: BlockAddr) -> Result<(), ()> {
-        self.servant.new_dir_item(name, entry)
+    pub fn insert_item(&mut self, name: &str,file_type:FileType) -> Result<(), ()> {
+        self.servant.new_dir_item(name,file_type)
     }
+
+    pub fn get_item_block_entry(&mut self,name:&str)->BlockAddr{
+        self.servant.find_item(name).unwrap()
+    }
+
+    
+    
 }
 
 ///本结构体是为了实现ZDir的转换，
@@ -146,10 +153,20 @@ fn test_dir_item() {
     // zd.insert_item("hello China7", BlockAddr { addr: 0 }).unwrap();
     // zd.insert_item("hello China8", BlockAddr { addr: 0 }).unwrap();
     // zd.insert_item("hello China9", BlockAddr { addr: 0 }).unwrap();
-    zd.insert_item(
-        "this is a long long long long long long long long long long item!",
-        BlockAddr { addr: 0 },
-    )
-    .unwrap();
+    // zd.insert_item(
+    //     "this is a long long long long long long long long long long item!",
+    //     BlockAddr { addr: 0 },
+    // )
+    // .unwrap();
     zd.ls();
+    zd.close();
+}
+
+#[test]
+fn test_item(){
+    let mut zd=ZDir::open(BlockAddr::new(120)).unwrap();
+    // zd.insert_item("hello");
+    zd.ls();
+    println!("hello's entry is :{:?}",zd.get_item_block_entry("hello"));
+    zd.close();
 }

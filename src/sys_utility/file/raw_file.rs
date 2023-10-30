@@ -34,7 +34,7 @@ impl RawF for RawFile {
 }
 
 impl RawFile {
-    ///给定一个空闲块，返回一个ZFile
+    ///给定一个空闲块，返回一个File
     pub fn new(file_type: FileType, block_entry: BlockAddr) -> RawFile {
         let mut f = RawFile {
             metadata: Metadata::new(0, BLOCK_SIZE),

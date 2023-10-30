@@ -2,12 +2,15 @@ use std::{
     mem::transmute,
     ops::{Add, AddAssign, Sub},
     process::Output,
-    vec,
+    vec
 };
 
-use crate::sys_utility::{addr::addr::BlockAddr, block::block_servant::DataPack};
+use crate::sys_utility::{addr::addr::BlockAddr, block::block_servant::DataPack, bitmap::block_bit_map::BlockBitmap};
 
 use super::{raw_file::RawFile, zdir::ZDirPack};
+
+use super::raw_f::{FileType, RawF};
+
 
 ///帮助zdir创建、删除、查找、遍历目录项
 #[derive(Debug)]
@@ -83,10 +86,21 @@ impl DirServant {
         }
         Ok(DirRawItem::from_u8(temp))
     }
-    ///输入一个文件名，向文件夹中插入一个diritem
-    pub fn new_dir_item(&mut self, name: &str, entry: BlockAddr) -> Result<(), ()> {
-        let generator = DirItemGenerateIter::new(name, entry);
+    ///输入一个文件名，向文件夹中插入一个diritem,并产生相应的文件
+    pub fn new_dir_item(&mut self, name: &str,file_type:FileType) -> Result<(), ()> {
+        let check=self.has_name(name);
+        match check{
+            Some(_)=>{println!("Already has a file/dir named:{}",name); return Err(());},
+            None=>{},
+            
+        };
+        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let entry=bit_map.get_free_block().unwrap();
+        
+        RawFile::new(file_type,entry);
 
+        let generator = DirItemGenerateIter::new(name, entry);
+        
         let mut item_addr = self.find_emtpy_gap(generator.len() as u32);
         // println!("{:?}",item_addr);
         for i in generator {
@@ -195,7 +209,43 @@ impl DirServant {
         ItemAddr { addr: temp }
     }
 
-    // pub fn add
+    fn has_name(&mut self,name: &str)->Option<ItemAddr>{
+        let range=ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
+        for i in range.iter(){
+            let n=self.get_name(i);
+            if(name.to_string()==n){
+                return Some(i);
+            }
+        }
+        return None
+    }
+    
+    pub fn find_item(&mut self,name:&str)->Option<BlockAddr>{
+        let find=self.has_name(name);
+        match find{
+            Some(i)=>{
+                Some(self.get_item_block_entry(i))
+            },
+            None=>{
+                println!("such a name is not found in dir:{}",name);
+                None
+            }
+        }
+    }
+
+    fn get_item_block_entry(&mut self,addr:ItemAddr)->BlockAddr{
+        let item=self.get_item(addr).unwrap().into_dir_item();
+        match item{
+            DirItem::Short(s)=>{s.get_block()},
+            _=>{
+                println!("尝试在非ShortDirItem中读取Blockentry，尝试的Item为{:?}",item);
+                panic!()    
+            }
+        }
+    }
+
+    
+
 }
 ///目录项的地址
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -477,6 +527,10 @@ impl ShortDirItem {
 
     pub fn get_flag(self) -> u8 {
         self.flag
+    }
+
+    pub fn get_block(&self)->BlockAddr{
+        self.data.get_addr()
     }
 }
 
