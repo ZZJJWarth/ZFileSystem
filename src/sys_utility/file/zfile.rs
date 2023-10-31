@@ -56,6 +56,10 @@ impl ZFile {
     pub fn get_block_entry(&self) -> BlockAddr {
         self.raw.get_block_entry()
     }
+
+    pub fn del(&mut self) {
+        self.raw.del();
+    }
 }
 
 #[cfg(test)]

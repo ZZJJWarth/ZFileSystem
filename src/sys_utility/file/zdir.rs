@@ -6,6 +6,7 @@ use crate::sys_utility::{
 
 use super::{
     dir_servant::{DirItem, DirServant},
+    file_err::DirDeleleError,
     raw_f::{FileType, RawF},
     raw_file::RawFile,
 };
@@ -78,6 +79,7 @@ impl ZDir {
 
     pub fn ls(&mut self) {
         self.servant.command_ls();
+        println!();
     }
 
     pub fn insert_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
@@ -86,6 +88,23 @@ impl ZDir {
 
     pub fn get_item_block_entry(&mut self, name: &str) -> Option<BlockAddr> {
         self.servant.find_item(name)
+    }
+
+    pub fn del_item(&mut self, name: &str) -> Result<(), DirDeleleError> {
+        self.servant.del_item(name)
+    }
+
+    pub fn status(&mut self) {
+        self.servant.item_status();
+        println!();
+    }
+
+    pub fn touch(&mut self, name: &str) {
+        self.servant.new_dir_item(name, FileType::File);
+    }
+
+    pub fn mkdir(&mut self, name: &str) {
+        self.servant.new_dir_item(name, FileType::Dir);
     }
 }
 
@@ -181,5 +200,23 @@ fn test_item() {
     zd1.close();
     // println!("hello's entry is :{:?}",zd.get_item_block_entry("File6"));
     // println!("{:?}",zd);
+    zd.close();
+}
+
+#[test]
+fn status() {
+    let mut zd = ZDir::open(BlockAddr::new(245)).unwrap();
+    // zd.mkdir("dir3");
+    // zd.touch("file2");
+    println!("{:?}", zd.servant.dir_empty());
+    let entry = zd.get_item_block_entry("dir3").unwrap();
+    let mut dir3 = ZDir::open(entry).unwrap();
+    dir3.mkdir("dir4");
+    dir3.status();
+    dir3.ls();
+    dir3.close();
+    zd.del_item("dir3");
+    // zd.ls();
+    // zd.status();
     zd.close();
 }

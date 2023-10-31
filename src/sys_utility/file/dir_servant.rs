@@ -12,6 +12,7 @@ use crate::sys_utility::{
 };
 
 use super::{
+    file_err::DirDeleleError,
     raw_file::RawFile,
     zdir::{ZDir, ZDirPack},
     zfile::ZFile,
@@ -167,6 +168,7 @@ impl DirServant {
         }
     }
 
+    ///输入一个Itemaddr，获取一个Item的名字
     pub fn get_name(&mut self, addr: ItemAddr) -> String {
         let list = self.get_name_raw(addr);
         let a = list.iter().map(|x| *x as char).collect::<Vec<_>>();
@@ -218,6 +220,7 @@ impl DirServant {
         ans.concat()
     }
 
+    ///获取一个item的flag
     fn get_flag(&mut self, addr: ItemAddr) -> u8 {
         let item = self.get_item(addr).unwrap().into_dir_item();
 
@@ -228,18 +231,24 @@ impl DirServant {
     fn find_emtpy_gap(&mut self, length: u32) -> ItemAddr {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         let mut count = 0;
+        let mut ans = ItemAddr::new(0);
+        let mut flag = true;
         for i in range.iter() {
             let temp = self.get_item(i).unwrap().into_dir_item();
-
+            if flag {
+                ans = i;
+                flag = false;
+            }
             match temp {
                 DirItem::None => {
                     count += 1;
                     if (count >= length) {
-                        return i;
+                        return ans;
                     }
                 }
                 _ => {
                     count = 0;
+                    flag = true;
                 }
             }
         }
@@ -249,6 +258,7 @@ impl DirServant {
         ItemAddr { addr: temp }
     }
 
+    ///通过一个name来查找是否有这个item
     fn has_name(&mut self, name: &str) -> Option<ItemAddr> {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
@@ -260,6 +270,7 @@ impl DirServant {
         return None;
     }
 
+    ///在目录项中查找是否有这个Item
     pub fn find_item(&mut self, name: &str) -> Option<BlockAddr> {
         let find = self.has_name(name);
         // println!("{:?}",self.get_item(ItemAddr { addr: 0 }));
@@ -284,6 +295,132 @@ impl DirServant {
                 panic!()
             }
         }
+    }
+
+    pub fn del_item(&mut self, name: &str) -> Result<(), DirDeleleError> {
+        let find = self.has_name(name);
+        let addr = match find {
+            Some(addr) => addr,
+            None => {
+                return Err(DirDeleleError::NotFoundError(format!(
+                    "not found {} in dir",
+                    name
+                )))
+            }
+        };
+        let item = self.get_item(addr).unwrap().into_dir_item();
+        let (file_type, entry) = match item {
+            DirItem::Short(s) => (s.get_type(), s.get_block()),
+            _ => {
+                return Err(DirDeleleError::NotShortItemError(format!(
+                    "找到的item不是shortitem，考虑get_item是否有问题"
+                )))
+            }
+        };
+        match file_type {
+            FileType::Dir => {
+                let mut zd = ZDir::open(entry).unwrap();
+                if zd.servant.dir_empty() {
+                    //空文件夹可以删除
+                    zd.servant.raw.del();
+                } else {
+                    return Err(DirDeleleError::NotEmptyDirError(format!(
+                        "删除失败，文件夹不为空"
+                    )));
+                }
+            } //TODO：这里还有dir的问题要解决！
+            FileType::File => {
+                let mut f = ZFile::open(entry);
+                f.del();
+            }
+        }
+        self.set_empty_item(addr);
+        Ok(())
+    }
+
+    fn set_empty_item(&mut self, addr: ItemAddr) {
+        // let mut current=self.get_item(addr).unwrap().into_dir_item();
+        let mut addr = addr;
+        let zero: DirRawItem = DirRawItem {
+            flag: DirRawItem::NON_USE_FLAG,
+            reserved: [0; 31],
+        };
+        let mut short_flag = false;
+        loop {
+            match self.get_flag(addr) {
+                DirRawItem::NON_USE_FLAG => {
+                    break;
+                }
+                DirRawItem::SHORT_FLAG => {
+                    if short_flag {
+                        break;
+                    }
+                    short_flag = true;
+                    self.insert_item(zero, addr);
+                    addr.step();
+                }
+                DirRawItem::LONG_END_FLAG => {
+                    if !short_flag {
+                        println!("set_empty_item函数输入的头部不是shortitem！");
+                        break;
+                    }
+                    self.insert_item(zero, addr);
+                    break;
+                }
+                _ => {
+                    if !short_flag {
+                        println!("set_empty_item函数输入的头部不是shortitem！");
+                        break;
+                    }
+                    self.insert_item(zero, addr);
+                    addr.step();
+                    continue;
+                }
+            }
+        }
+    }
+
+    pub fn item_status(&mut self) {
+        let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
+        let mut count = 0;
+        for i in range.iter() {
+            count += 1;
+            if (count % 8 == 0) {
+                println!();
+            }
+
+            let flag = self.get_flag(i);
+            match flag {
+                DirRawItem::NON_USE_FLAG => {
+                    print!("None\t");
+                }
+                DirRawItem::SHORT_FLAG => {
+                    print!("Short\t");
+                }
+                DirRawItem::LONG_END_FLAG => {
+                    print!("End\t");
+                }
+                _ => {
+                    print!("Long\t");
+                }
+            }
+        }
+    }
+
+    pub fn dir_empty(&mut self) -> bool {
+        let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
+        for i in range.iter() {
+            let flag = self.get_flag(i);
+            match flag {
+                DirRawItem::SHORT_FLAG => {
+                    return false;
+                }
+                _ => {
+                    continue;
+                }
+            }
+        }
+        return true;
     }
 }
 ///目录项的地址
@@ -367,7 +504,7 @@ impl Iterator for ItemAddrRangeIter {
         }
     }
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct DirRawItem {
     flag: u8,
     reserved: [u8; 31],
