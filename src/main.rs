@@ -2,30 +2,34 @@
 
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Seek, SeekFrom, Write};
+use std::net::TcpListener;
 
+use file_shell::thread_function::handle_shell_command;
+use file_shell::thread_pool::ThreadPool;
+
+mod file_shell;
 mod sys_utility;
 mod test;
 
 fn main() -> std::io::Result<()> {
-    // let a:u8=123;
-    // fs::write("../apiTest",&a);
-    // let f=File::open("../apiTest")?;
-    // let mut bf=BufReader::with_capacity(10,f);
-    // bf.seek_relative(5);
-    // bf.fill_buf();
-    // let mut f=File::options().write(true).open("/home/warth/projectZone/myFS/apiTest")?;
-    // let mut bf=BufWriter::with_capacity(3, &f);
-    // bf.seek(SeekFrom::Start(2));
-    // let list="123456789";
-    // println!("{}",bf.write(list).unwrap());
-    // let a=bf.into_inner().unwrap();
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
-    // println!("{:?}",list);
-    use std::io::stdin;
+    let pool = ThreadPool::new(5);
 
-    let mut str = String::new();
-    let si = stdin();
-    si.read_line(&mut str).unwrap();
-    println!("{}", str);
+    for stream in listener.incoming() {
+        let mut stream = match stream {
+            Ok(s) => s,
+            Err(_) => {
+                println!("failed to connect!");
+                continue;
+            }
+        };
+
+        // println!("{}",request_line);
+        let note = String::from("input your user name:\n");
+        stream.write_all(note.as_bytes()).unwrap();
+        pool.execute(|| handle_shell_command(stream));
+    }
+
     Ok(())
 }

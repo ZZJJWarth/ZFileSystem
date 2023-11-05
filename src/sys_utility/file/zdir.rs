@@ -50,7 +50,7 @@ impl ZDir {
         Ok(zd)
     }
     ///关闭一个Dir
-    pub fn close(mut self) {
+    pub fn close(&mut self) {
         self.write_self();
         self.servant.file().close();
     }
@@ -72,39 +72,45 @@ impl ZDir {
     pub fn get_item_num(&self) -> u32 {
         self.servant.get_item_num()
     }
-
+    ///获取自己的入口
     pub fn get_block_entry(&self) -> BlockAddr {
         self.servant.get_block_entry()
     }
-
+    ///列出当前文件夹的文件列表
     pub fn ls(&mut self) {
         self.servant.command_ls();
         println!();
     }
-
+    ///输入文件名字和文件类型创建文件（下面是这个的语法糖，都是一样的功能）
     pub fn insert_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
         self.servant.new_dir_item(name, file_type)
     }
-
+    ///获得一个文件的入口
     pub fn get_item_block_entry(&mut self, name: &str) -> Option<BlockAddr> {
         self.servant.find_item(name)
     }
-
+    ///删除一个文件（输入名字删除）
     pub fn del_item(&mut self, name: &str) -> Result<(), DirDeleleError> {
         self.servant.del_item(name)
     }
-
+    ///查看目录块的状态
     pub fn status(&mut self) {
         self.servant.item_status();
         println!();
     }
-
+    ///在当前目录下，创建一个文件
     pub fn touch(&mut self, name: &str) {
         self.servant.new_dir_item(name, FileType::File);
     }
-
+    ///在当前目录下，创建一个目录
     pub fn mkdir(&mut self, name: &str) {
         self.servant.new_dir_item(name, FileType::Dir);
+    }
+}
+
+impl Drop for ZDir {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -145,16 +151,17 @@ impl ZDirPack {
 #[cfg(test)]
 #[test]
 fn test_new() {
-    let zd = ZDir::new();
+    let mut zd = ZDir::new();
     println!("{:?}", zd);
     zd.close();
 }
 
 #[test]
 fn test_open() {
-    let zd = ZDir::open(BlockAddr { addr: 211 }).unwrap();
+    let mut zd = ZDir::open(BlockAddr { addr: 254 }).unwrap();
+    // zd.mkdir("name");
     println!("{:?}", zd);
-    zd.close();
+    // zd.close();
 }
 
 #[test]
