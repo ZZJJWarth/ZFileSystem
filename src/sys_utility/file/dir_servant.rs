@@ -81,7 +81,7 @@ impl DirServant {
             .write(addr.get_offset(), &mut buf, DirRawItem::ITEM_SIZE as u32)
     }
     ///傻瓜式地读取一个Item
-    fn get_item(&mut self, addr: ItemAddr) -> Result<DirRawItem, ()> {
+    fn get_item(&self, addr: ItemAddr) -> Result<DirRawItem, ()> {
         if (addr.get_addr() >= self.num) {
             println!("DirServent 尝试越界读取，请尝试增加容量写入后再读取\n读取坐标：{:?}\n当前空间：{:?}",addr,self.num);
             panic!();
@@ -140,7 +140,8 @@ impl DirServant {
         Ok(())
     }
 
-    pub fn command_ls(&mut self) {
+    pub fn command_ls(&mut self)->String {
+        let mut ans:Vec<String>=vec![];
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
             // println!("{:?}",i);
@@ -154,10 +155,10 @@ impl DirServant {
                     let file_type = item.get_type();
                     match file_type {
                         FileType::Dir => {
-                            print!("<{}>\t", str);
+                            ans.push(format!("<{}>\t", str));
                         }
                         FileType::File => {
-                            print!("{}\t", str);
+                            ans.push(format!("{}\t", str));
                         }
                     }
                 }
@@ -166,6 +167,7 @@ impl DirServant {
                 }
             }
         }
+        ans.concat()
     }
 
     ///输入一个Itemaddr，获取一个Item的名字

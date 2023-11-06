@@ -77,9 +77,9 @@ impl ZDir {
         self.servant.get_block_entry()
     }
     ///列出当前文件夹的文件列表
-    pub fn ls(&mut self) {
-        self.servant.command_ls();
-        println!();
+    pub fn ls(&mut self)->String {
+        self.servant.command_ls()
+
     }
     ///输入文件名字和文件类型创建文件（下面是这个的语法糖，都是一样的功能）
     pub fn insert_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {

@@ -25,7 +25,7 @@ impl Shell {
         let head = self.head();
         let content = match input.trim() {
             "EXIT" => "".to_string(),
-            "ls" => bin::ls::ls(),
+            "ls" => bin::ls::ls(&self.path),
             "" => "".to_string(),
             _ => {
                 format!("Err:there is no such a command:{}", input)

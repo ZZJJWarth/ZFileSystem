@@ -51,12 +51,12 @@ impl RawFile {
         f
     }
 
-    pub fn read(&mut self, offset: u32, buf: &mut Vec<u8>, size: u32) -> Result<(), ()> {
+    pub fn read(&self, offset: u32, buf: &mut Vec<u8>, size: u32) -> Result<(), ()> {
         let offset = offset + ZFILE_SIZE as u32;
         self.raw_read(offset, buf, size)
     }
 
-    fn raw_read(&mut self, offset: u32, buf: &mut Vec<u8>, size: u32) -> Result<(), ()> {
+    fn raw_read(&self, offset: u32, buf: &mut Vec<u8>, size: u32) -> Result<(), ()> {
         let len = self.metadata.get_file_len();
         match self.block_servant.read_check(len, offset, size) {
             Ok(()) => {

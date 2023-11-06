@@ -12,11 +12,13 @@ pub struct FileTable {
 
 impl FileTable {
     ///创建新的FileTable
-    fn new() {
-        todo!()
+    pub fn new() ->FileTable{
+        let hash_map:HashMap<String, Arc<RwLock<VFile>>>=HashMap::new();
+        let root_file=RawRootFile::new();
+        FileTable{hash_map,root_file}
     }
     ///供用户使用的open函数，根据地址获得文件的指针
-    fn open(&mut self, addr: &str) -> Arc<RwLock<VFile>> {
+    pub fn open(&mut self, addr: &str) -> Arc<RwLock<VFile>> {
         let addr = String::from(addr);
         for i in self.hash_map.keys() {
             if addr == *i {
@@ -32,4 +34,15 @@ impl FileTable {
     fn close(addr: &str) {
         todo!()
     }
+}
+
+
+#[cfg(test)]
+#[test]
+fn test_open_raw(){
+    use std::ops::Deref;
+
+    let mut ft=FileTable::new();
+    let a=ft.open("/warth");
+    let a=a.as_ref().read().unwrap().deref();
 }

@@ -100,6 +100,6 @@ fn raw_test() {
 #[test]
 fn test_get_file() {
     let mut raw = RawRootFile::new();
-    let a = raw.get_file("/warth/gogo").unwrap();
+    let a = raw.get_file("/warth/gogo");
     println!("{:?}", a);
 }
