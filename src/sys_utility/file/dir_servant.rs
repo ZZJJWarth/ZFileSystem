@@ -7,8 +7,11 @@ use std::{
     vec,
 };
 
-use crate::sys_utility::{
-    addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, block::block_servant::DataPack,
+use crate::{
+    file_shell::root_file::error::FileSystemOperationError,
+    sys_utility::{
+        addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, block::block_servant::DataPack,
+    },
 };
 
 use super::{
@@ -97,12 +100,18 @@ impl DirServant {
         Ok(DirRawItem::from_u8(temp))
     }
     ///输入一个文件名，向文件夹中插入一个diritem,并产生相应的文件
-    pub fn new_dir_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
+    pub fn new_dir_item(
+        &mut self,
+        name: &str,
+        file_type: FileType,
+    ) -> Result<(), FileSystemOperationError> {
         let check = self.has_name(name);
         match check {
             Some(_) => {
-                println!("Already has a file/dir named:{}", name);
-                return Err(());
+                return Err(FileSystemOperationError::ExistNameError(format!(
+                    "Already has a file/dir named:{}",
+                    name
+                )));
             }
             None => {}
         };
@@ -140,8 +149,8 @@ impl DirServant {
         Ok(())
     }
 
-    pub fn command_ls(&mut self)->String {
-        let mut ans:Vec<String>=vec![];
+    pub fn command_ls(&self) -> String {
+        let mut ans: Vec<String> = vec![];
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
             // println!("{:?}",i);
@@ -171,13 +180,13 @@ impl DirServant {
     }
 
     ///输入一个Itemaddr，获取一个Item的名字
-    pub fn get_name(&mut self, addr: ItemAddr) -> String {
+    pub fn get_name(&self, addr: ItemAddr) -> String {
         let list = self.get_name_raw(addr);
         let a = list.iter().map(|x| *x as char).collect::<Vec<_>>();
         a.iter().collect()
     }
 
-    fn get_name_raw(&mut self, addr: ItemAddr) -> Vec<u8> {
+    fn get_name_raw(&self, addr: ItemAddr) -> Vec<u8> {
         let mut current = self.get_item(addr).unwrap().into_dir_item();
         let mut addr = addr;
         let mut ans: Vec<Vec<u8>> = vec![];
@@ -223,7 +232,7 @@ impl DirServant {
     }
 
     ///获取一个item的flag
-    fn get_flag(&mut self, addr: ItemAddr) -> u8 {
+    fn get_flag(&self, addr: ItemAddr) -> u8 {
         let item = self.get_item(addr).unwrap().into_dir_item();
 
         item.get_flag().unwrap()
@@ -291,8 +300,8 @@ impl DirServant {
             DirItem::Short(s) => s.get_block(),
             _ => {
                 println!(
-                    "尝试在非ShortDirItem中读取Blockentry，尝试的Item为{:?}",
-                    item
+                    "尝试在非ShortDirItem中读取Blockentry，尝试的Item为{:?},当前dir为{:?}",
+                    item, self
                 );
                 panic!()
             }

@@ -1,7 +1,8 @@
 use std::mem::transmute;
 
-use crate::sys_utility::{
-    addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, file::zfile::ZFile,
+use crate::{
+    file_shell::root_file::error::FileSystemOperationError,
+    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, file::zfile::ZFile},
 };
 
 use super::{
@@ -77,12 +78,15 @@ impl ZDir {
         self.servant.get_block_entry()
     }
     ///列出当前文件夹的文件列表
-    pub fn ls(&mut self)->String {
+    pub fn ls(&self) -> String {
         self.servant.command_ls()
-
     }
     ///输入文件名字和文件类型创建文件（下面是这个的语法糖，都是一样的功能）
-    pub fn insert_item(&mut self, name: &str, file_type: FileType) -> Result<(), ()> {
+    pub fn insert_item(
+        &mut self,
+        name: &str,
+        file_type: FileType,
+    ) -> Result<(), FileSystemOperationError> {
         self.servant.new_dir_item(name, file_type)
     }
     ///获得一个文件的入口
@@ -103,8 +107,8 @@ impl ZDir {
         self.servant.new_dir_item(name, FileType::File);
     }
     ///在当前目录下，创建一个目录
-    pub fn mkdir(&mut self, name: &str) {
-        self.servant.new_dir_item(name, FileType::Dir);
+    pub fn mkdir(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::Dir)
     }
 }
 

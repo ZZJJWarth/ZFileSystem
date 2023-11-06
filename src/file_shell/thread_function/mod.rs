@@ -39,7 +39,7 @@ pub fn handle_shell_command(mut stream: TcpStream) {
             }
         };
         println!("{request_line}");
-        let answer = shell.shell(&mut request_line);
+        let answer = shell.shell(request_line);
         println!("{answer}");
         stream.write_all(answer.as_bytes());
         stream.flush().unwrap();

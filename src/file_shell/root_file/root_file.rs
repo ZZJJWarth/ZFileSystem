@@ -1,7 +1,13 @@
 use crate::sys_utility::{
     addr::addr::BlockAddr,
     bitmap::block_bit_map::BlockBitmap,
-    file::{zdir::ZDir, zfile::ZFile},
+    config::config::NON_OCCUPY_NUM,
+    file::{
+        raw_f::{FileType, RawF},
+        raw_file::RawFile,
+        zdir::ZDir,
+        zfile::ZFile,
+    },
 };
 use std::{
     cell::RefCell,
@@ -15,6 +21,17 @@ use super::error::FileSystemOperationError;
 pub enum VFile {
     ZFile(ZFile),
     ZDir(ZDir),
+}
+
+impl VFile {
+    pub fn dir_mkdir(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
+        match self {
+            VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "这里需要一个目录，但是这里却是文件"
+            ))),
+            VFile::ZDir(zdir) => zdir.mkdir(name),
+        }
+    }
 }
 
 struct RootFile {
@@ -37,9 +54,14 @@ impl RawRootFile {
         }
     }
 
-    pub fn get_file(&mut self, path: &str) -> Result<VFile, FileSystemOperationError> {
+    fn get_addr(&mut self, path: &str) -> Result<BlockAddr, FileSystemOperationError> {
         let pathv = Self::parse_path(path);
+        // println!("{:?}", pathv);
+        if pathv.len() == 1 {
+            return Ok(self.dir);
+        }
         let mut current_dir = ZDir::open(self.dir).unwrap();
+
         for i in 1..pathv.len() - 1 {
             let addr = current_dir
                 .get_item_block_entry(pathv.get(i).unwrap())
@@ -53,16 +75,64 @@ impl RawRootFile {
                 }
             }
         }
-        let addr = current_dir
-            .get_item_block_entry(pathv.get(pathv.len() - 1).unwrap())
-            .unwrap();
+        let addr = current_dir.get_item_block_entry(pathv.get(pathv.len() - 1).unwrap());
+        let addr = match addr {
+            Some(b) => b,
+            None => {
+                return Result::Err(FileSystemOperationError::NotFoundError(format!(
+                    "we cannot found the file:{path}"
+                )))
+            }
+        };
+        return Ok(addr);
+    }
+
+    pub fn get_raw(&mut self, path: &str) -> Result<VFile, FileSystemOperationError> {
+        let addr = match self.get_addr(path) {
+            Ok(addr) => addr,
+            Err(e) => return Err(e),
+        };
+        let ans = RawFile::open(addr).unwrap();
+        match ans.get_type() {
+            FileType::File => {
+                let f = ZFile::open(addr);
+                return Ok(VFile::ZFile(f));
+            }
+            FileType::Dir => {
+                let d = ZDir::open(addr).unwrap();
+                return Ok(VFile::ZDir(d));
+            }
+        }
+    }
+
+    pub fn get_file(&mut self, path: &str) -> Result<VFile, FileSystemOperationError> {
+        let addr = match self.get_addr(path) {
+            Ok(addr) => addr,
+            Err(e) => return Err(e),
+        };
         let ans = ZFile::open(addr);
 
         Ok(VFile::ZFile(ans))
     }
 
+    pub fn get_dir(&mut self, path: &str) -> Result<VFile, FileSystemOperationError> {
+        let addr = match self.get_addr(path) {
+            Ok(addr) => addr,
+            Err(e) => return Err(e),
+        };
+        let ans = ZDir::open(addr).unwrap();
+
+        Ok(VFile::ZDir(ans))
+    }
+
     pub fn parse_path(path: &str) -> Vec<String> {
-        path.split('/').map(|x| x.to_string()).collect()
+        let mut ans: Vec<String> = path.split('/').map(|x| x.to_string()).collect();
+        if ans.get(ans.len() - 1).unwrap() == "" {
+            ans.pop();
+            ans
+        } else {
+            ans
+        }
     }
 }
 
@@ -76,7 +146,7 @@ impl RawRootFile {
 #[cfg(test)]
 #[test]
 fn test_parse() {
-    println!("{:?}", RawRootFile::parse_path("/warth/gogo/rust"));
+    println!("{:?}", RawRootFile::parse_path("/warth/gogo"));
 }
 
 #[test]
