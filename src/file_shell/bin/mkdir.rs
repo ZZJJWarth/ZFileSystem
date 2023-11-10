@@ -5,8 +5,15 @@ use crate::file_shell::{
     root_file::{error::FileSystemOperationError, root_file::VFile},
 };
 
+use super::helper::{ft_unwrap, get_ft};
+
+// use super::helper::get_ft_guard;
+
 pub fn mkdir(current_path: &str, dir_name: &str) -> Result<(), FileSystemOperationError> {
-    let mut ft = FileTable::new();
+    // let mut ft=get_ft_guard()?;
+    let ft = get_ft()?;
+    let ft = ft.lock();
+    let mut ft = ft_unwrap(ft)?;
     let ls_dir = ft.open(current_path)?;
 
     let dir = ls_dir.as_ref().write();

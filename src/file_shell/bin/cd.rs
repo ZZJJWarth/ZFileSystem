@@ -8,6 +8,10 @@ use crate::file_shell::{
         root_file::{RawRootFile, VFile},
     },
 };
+
+use super::helper::{ft_unwrap, get_ft};
+
+// use super::helper::get_ft_guard;
 ///输入当前路径和cd命令，如果可以成功，那么返回成功后的路径。如果失败就返回失败信息
 pub fn cd(shell_path: &String, command: &str) -> Result<String, FileSystemOperationError> {
     let next_file = match get_args(command) {
@@ -18,7 +22,9 @@ pub fn cd(shell_path: &String, command: &str) -> Result<String, FileSystemOperat
     let after_path = to_next_file(current_path, next_file); //这个是cd后的文件路径
 
     // let path=RawRootFile::parse_path(current_path);
-    let mut ft = FileTable::new();
+    let ft = get_ft()?;
+    let ft = ft.lock();
+    let mut ft = ft_unwrap(ft)?;
     let ls_dir = ft.open(&after_path)?; //尝试打开文件，如果失败就返回错误，如果成功就返回cd后的路径
     let dir = ls_dir.as_ref().read();
     let mut dir = match dir {

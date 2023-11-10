@@ -68,19 +68,23 @@ struct RootFile {
 }
 #[derive(Debug)]
 pub struct RawRootFile {
-    bitmap: BlockBitmap,
+    bitmap: Arc<Mutex<BlockBitmap>>,
     dir: BlockAddr,
 }
 
 impl RawRootFile {
     const TEST_ADDR: BlockAddr = BlockAddr { addr: 775 };
-    pub fn new() -> RawRootFile {
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-                                                                           // let zd=ZDir::open(BlockAddr { addr: 253 }).unwrap();
-        Self {
-            bitmap: bit_map,
-            dir: Self::TEST_ADDR,
-        }
+    // pub fn new() -> RawRootFile {
+    //     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+    //                                                                        // let zd=ZDir::open(BlockAddr { addr: 253 }).unwrap();
+    //     Self {
+    //         bitmap: bit_map,
+    //         dir: Self::TEST_ADDR,
+    //     }
+    // }
+
+    pub fn new(bitmap: Arc<Mutex<BlockBitmap>>, dir: BlockAddr) -> RawRootFile {
+        Self { bitmap, dir }
     }
 
     fn get_addr(&mut self, path: &str) -> Result<BlockAddr, FileSystemOperationError> {
@@ -196,9 +200,9 @@ fn raw_test() {
     // println!("{:?}",warth);
 }
 
-#[test]
-fn test_get_file() {
-    let mut raw = RawRootFile::new();
-    let a = raw.get_file("/warth/gogo");
-    println!("{:?}", a);
-}
+// #[test]
+// fn test_get_file() {
+//     let mut raw = RawRootFile::new();
+// let a = raw.get_file("/warth/gogo");
+//     println!("{:?}", a);
+// }

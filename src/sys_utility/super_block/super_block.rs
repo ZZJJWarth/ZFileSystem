@@ -4,10 +4,14 @@ use std::{
 };
 
 use crate::{
-    file_shell::{file_table::file_table::FileTable, root_file::error::FileSystemOperationError},
+    file_shell::{
+        file_table::file_table::FileTable,
+        root_file::{error::FileSystemOperationError, root_file::RawRootFile},
+    },
     sys_utility::{
         addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, config::config::BLOCK_SIZE,
     },
+    SUPER_BLOCK,
 };
 
 #[derive(Debug)]
@@ -17,7 +21,7 @@ pub struct SuperBlock {
     bitmap_num: u32,          //保留给bitmap的块数
     root_dir_addr: BlockAddr, //根目录的地址
     bitmap: Option<Arc<Mutex<BlockBitmap>>>,
-    file_table: Option<Mutex<FileTable>>,
+    file_table: Option<Arc<Mutex<FileTable>>>,
 }
 
 impl SuperBlock {
@@ -48,9 +52,27 @@ impl SuperBlock {
             self.bitmap_num,
             self.reserve_num + self.reserve_num + self.bitmap_num,
         );
+        let bitmap = Arc::new(Mutex::new(bitmap));
+        let root_file = RawRootFile::new(Arc::clone(&bitmap), self.root_dir_addr);
+        let file_table = FileTable::init_new(root_file);
+        self.bitmap = Some(bitmap);
+        self.file_table = Some(Arc::new(Mutex::new(file_table)));
+        Ok(())
+    }
 
-        let file_table = FileTable::new();
+    pub fn get_file_table(&self) -> Option<Arc<Mutex<FileTable>>> {
+        self.file_table.clone()
+    }
 
+    pub fn get_bitmap(&self) -> Option<Arc<Mutex<BlockBitmap>>> {
+        self.bitmap.clone()
+    }
+
+    pub fn init_main(path: &str) -> Result<(), FileSystemOperationError> {
+        let mut sb = SuperBlock::new(path)?;
+        unsafe {
+            SUPER_BLOCK = Some(Arc::new(Mutex::new(sb)));
+        }
         Ok(())
     }
 }

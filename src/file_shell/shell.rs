@@ -29,7 +29,13 @@ impl Shell {
         let head = self.head();
         let content = match command.get(0).unwrap().as_str() {
             "EXIT" => "".to_string(),
-            "ls" => bin::ls::ls(&self.path),
+            "ls" => {
+                let output = bin::ls::ls(&self.path);
+                match output {
+                    Ok(s) => s,
+                    Err(e) => format!("{:?}", e),
+                }
+            }
             "cd" => {
                 let after = bin::cd::cd(&self.path, &input);
                 match after {

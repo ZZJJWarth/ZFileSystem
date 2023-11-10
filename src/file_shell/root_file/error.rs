@@ -9,4 +9,5 @@ pub enum FileSystemOperationError {
     NotFileError(String),
     WriteError(String),
     DiskError(String),
+    InitError(String),
 }

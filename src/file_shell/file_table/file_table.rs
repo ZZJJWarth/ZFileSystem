@@ -16,14 +16,14 @@ pub struct FileTable {
 
 impl FileTable {
     ///创建新的FileTable
-    pub fn new() -> FileTable {
-        let hash_map: HashMap<String, Arc<RwLock<VFile>>> = HashMap::new();
-        let root_file = RawRootFile::new();
-        FileTable {
-            hash_map,
-            root_file,
-        }
-    }
+    // pub fn new() -> FileTable {
+    //     let hash_map: HashMap<String, Arc<RwLock<VFile>>> = HashMap::new();
+    //     let root_file = RawRootFile::new();
+    //     FileTable {
+    //         hash_map,
+    //         root_file,
+    //     }
+    // }
 
     pub fn init_new(root_file: RawRootFile) -> FileTable {
         let hash_map: HashMap<String, Arc<RwLock<VFile>>> = HashMap::new();
@@ -59,9 +59,9 @@ impl FileTable {
 #[cfg(test)]
 #[test]
 fn test_open_raw() {
-    use std::ops::Deref;
+    // use std::ops::Deref;
 
-    let mut ft = FileTable::new();
-    let a = ft.open("/warth/gogo");
-    println!("{:?}", a);
+    // let mut ft = FileTable::new();
+    // let a = ft.open("/warth/gogo");
+    // println!("{:?}", a);
 }
