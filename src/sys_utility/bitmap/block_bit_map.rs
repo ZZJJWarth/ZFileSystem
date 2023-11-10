@@ -1,4 +1,5 @@
 use core::panic;
+use std::fs::File;
 
 use super::super::{
     addr::addr::{BlockAddr, BlockCount, BlockRange},
@@ -144,4 +145,11 @@ fn test2() {
     bit_map.init();
     // println!("content a:{:?}", bit_map.get_content(BlockAddr { addr: 2 }));
     bit_map.get_free_block();
+}
+
+#[test]
+fn test_init() {
+    let f = File::open("../test");
+    let ff = f.unwrap();
+    println!("{}", ff.metadata().unwrap().len());
 }

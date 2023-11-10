@@ -10,12 +10,13 @@ use super::super::{
     config::config::{BLOCK_SIZE, NON_OCCUPY_NUM},
 };
 
+use crate::file_shell::root_file::error::FileSystemOperationError;
 use crate::sys_utility::bitmap::bitmap_servant;
 use crate::sys_utility::config::config::FILE_PATH;
 
 use super::metadata::Metadata;
 use super::raw_f::{FileType, RawF};
-const ZFILE_SIZE: usize = 16;
+pub const ZFILE_SIZE: usize = 16;
 #[derive(Debug, Clone, Copy)]
 pub struct RawFile {
     metadata: Metadata,
@@ -67,17 +68,29 @@ impl RawFile {
         }
     }
 
-    pub fn write(&mut self, offset: u32, buf: &Vec<u8>, size: u32) -> Result<(), ()> {
+    pub fn write(
+        &mut self,
+        offset: u32,
+        buf: &Vec<u8>,
+        size: u32,
+    ) -> Result<usize, FileSystemOperationError> {
         // println!("{:?}",buf);
         let offset = offset + ZFILE_SIZE as u32;
         self.raw_write(offset, buf, size)
     }
 
-    fn raw_write(&mut self, offset: u32, buf: &Vec<u8>, size: u32) -> Result<(), ()> {
+    fn raw_write(
+        &mut self,
+        offset: u32,
+        buf: &Vec<u8>,
+        size: u32,
+    ) -> Result<usize, FileSystemOperationError> {
         let now_len = self.metadata.get_file_len();
         if now_len < offset {
-            println!("偏移量不能大于文件长度");
-            return Err(());
+            // println!("偏移量不能大于文件长度");
+            return Err(FileSystemOperationError::WriteError(format!(
+                "偏移量不能大于文件长度"
+            )));
         }
 
         let max_len = self.metadata.get_max_len();
@@ -96,7 +109,7 @@ impl RawFile {
             now_len
         };
         self.metadata.set_file_len(max);
-        Ok(())
+        Ok(size as usize)
     }
 
     pub fn file_to_u8(file: RawFile) -> [u8; ZFILE_SIZE] {
@@ -163,7 +176,11 @@ impl RawFile {
         self.metadata.set_max_len(count);
     }
 
-    pub fn add_write(&mut self, buf: &Vec<u8>, size: u32) -> Result<(), ()> {
+    pub fn add_write(
+        &mut self,
+        buf: &Vec<u8>,
+        size: u32,
+    ) -> Result<usize, FileSystemOperationError> {
         let offset = self.metadata.get_file_len();
         self.raw_write(offset, buf, size)
     }

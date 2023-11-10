@@ -1,6 +1,12 @@
-use crate::sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap};
+use crate::{
+    file_shell::root_file::error::FileSystemOperationError,
+    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap},
+};
 
-use super::raw_file::RawFile;
+use super::{
+    raw_f::RawF,
+    raw_file::{RawFile, ZFILE_SIZE},
+};
 #[derive(Debug)]
 pub struct ZFile {
     raw: RawFile,
@@ -21,16 +27,16 @@ impl ZFile {
         }
     }
 
-    pub fn close(mut self) {
+    pub fn close(&mut self) {
         self.raw.close();
     }
 
     pub fn init_raw(raw: RawFile) {
-        let f = ZFile { raw };
+        let mut f = ZFile { raw };
         f.close();
     }
 
-    pub fn char_read(&mut self, offset: u32, size: u32) -> Vec<char> {
+    pub fn char_read(&self, offset: u32, size: u32) -> Vec<char> {
         let mut buf: Vec<u8> = vec![];
         self.raw.read(offset, &mut buf, size);
         let mut ans: Vec<char> = vec![];
@@ -60,17 +66,36 @@ impl ZFile {
     pub fn del(&mut self) {
         self.raw.del();
     }
+
+    pub fn cat(&self) -> String {
+        let vec = self.char_read(0, self.raw.metadata().get_file_len() - ZFILE_SIZE as u32);
+        vec.iter().collect()
+    }
+
+    pub fn write(&mut self, content: String) -> Result<usize, FileSystemOperationError> {
+        let buf = content.as_bytes().to_vec();
+        // println!("{:?}",buf);
+        self.raw.add_write(&buf, content.len() as u32)
+    }
+}
+
+impl Drop for ZFile {
+    fn drop(&mut self) {
+        self.close();
+    }
 }
 
 #[cfg(test)]
 #[test]
 fn test_zfile() {
-    let mut zf = ZFile::open(BlockAddr { addr: 78 });
+    let mut zf = ZFile::open(BlockAddr { addr: 787 });
     println!("{:?}", zf);
+    // zf.reduce(25);
+    // zf.write(format!("hello"));
     // let input=vec!['h','e','l','l','o'];
     // zf.char_write(0, 5, input).unwrap();
     // zf.reduce(1);
-    let output = zf.char_read(0, 4);
-    println!("{:?}", output);
-    zf.close();
+    let output = zf.cat();
+    println!("{}", output);
+    // zf.close();
 }

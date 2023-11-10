@@ -4,10 +4,11 @@ use std::{
 };
 
 use crate::file_shell::root_file::{
+    self,
     error::FileSystemOperationError,
     root_file::{RawRootFile, VFile},
 };
-
+#[derive(Debug)]
 pub struct FileTable {
     hash_map: HashMap<String, Arc<RwLock<VFile>>>,
     root_file: RawRootFile,
@@ -18,6 +19,14 @@ impl FileTable {
     pub fn new() -> FileTable {
         let hash_map: HashMap<String, Arc<RwLock<VFile>>> = HashMap::new();
         let root_file = RawRootFile::new();
+        FileTable {
+            hash_map,
+            root_file,
+        }
+    }
+
+    pub fn init_new(root_file: RawRootFile) -> FileTable {
+        let hash_map: HashMap<String, Arc<RwLock<VFile>>> = HashMap::new();
         FileTable {
             hash_map,
             root_file,

@@ -12,6 +12,7 @@ use crate::sys_utility::{
 use std::{
     cell::RefCell,
     clone,
+    fmt::format,
     sync::{Arc, Mutex},
 };
 
@@ -27,9 +28,37 @@ impl VFile {
     pub fn dir_mkdir(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
         match self {
             VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
-                "这里需要一个目录，但是这里却是文件"
+                "mkdir:这里需要一个目录，但是这里却是文件"
             ))),
             VFile::ZDir(zdir) => zdir.mkdir(name),
+        }
+    }
+
+    pub fn dir_touch(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
+        match self {
+            VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "touch:这里需要一个目录，但是这里却是文件"
+            ))),
+            VFile::ZDir(zdir) => zdir.touch(name),
+        }
+    }
+
+    pub fn file_cat(&self) -> Result<String, FileSystemOperationError> {
+        // todo!()
+        match self {
+            VFile::ZDir(_) => Err(FileSystemOperationError::NotFileError(format!(
+                "cat:这里需要一个文件，但是这里却是目录"
+            ))),
+            VFile::ZFile(f) => Ok(f.cat()),
+        }
+    }
+
+    pub fn file_write(&mut self, content: String) -> Result<usize, FileSystemOperationError> {
+        match self {
+            VFile::ZDir(_) => Err(FileSystemOperationError::NotFileError(format!(
+                "cat:这里需要一个文件，但是这里却是目录"
+            ))),
+            VFile::ZFile(f) => f.write(content),
         }
     }
 }

@@ -69,7 +69,11 @@ impl DirServant {
     }
 
     ///傻瓜式地插入一个Item
-    fn insert_item(&mut self, item: DirRawItem, addr: ItemAddr) -> Result<(), ()> {
+    fn insert_item(
+        &mut self,
+        item: DirRawItem,
+        addr: ItemAddr,
+    ) -> Result<usize, FileSystemOperationError> {
         if (addr.get_addr() >= self.num) {
             println!(
                 "DirServent 尝试越界写入，请尝试增加容量再写入\n写入坐标：{:?}\n当前空间：{:?}",
@@ -127,7 +131,7 @@ impl DirServant {
                 temp.close();
             }
             FileType::File => {
-                let temp = ZFile::new();
+                let mut temp = ZFile::new();
                 entry = temp.get_block_entry();
                 temp.close();
             }

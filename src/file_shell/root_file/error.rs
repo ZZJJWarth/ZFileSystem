@@ -6,4 +6,7 @@ pub enum FileSystemOperationError {
     UnableToOpenFile(String),
     NotDirError(String),
     ExistNameError(String),
+    NotFileError(String),
+    WriteError(String),
+    DiskError(String),
 }

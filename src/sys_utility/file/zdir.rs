@@ -64,7 +64,7 @@ impl ZDir {
         todo!()
     }
     ///很重要的一个函数，它会写入一个Dir的头部，把DirPack写入头部
-    fn write_self(&mut self) -> Result<(), ()> {
+    fn write_self(&mut self) -> Result<usize, FileSystemOperationError> {
         let a = ZDirPack::new(self);
         let a = ZDirPack::into_u8(a).to_vec();
         self.servant.file().write(0, &a, ZDirPack::PACK_SIZE)
@@ -103,8 +103,8 @@ impl ZDir {
         println!();
     }
     ///在当前目录下，创建一个文件
-    pub fn touch(&mut self, name: &str) {
-        self.servant.new_dir_item(name, FileType::File);
+    pub fn touch(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::File)
     }
     ///在当前目录下，创建一个目录
     pub fn mkdir(&mut self, name: &str) -> Result<(), FileSystemOperationError> {

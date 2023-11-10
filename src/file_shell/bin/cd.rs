@@ -79,7 +79,7 @@ fn get_args(command: &str) -> Result<String, FileSystemOperationError> {
     Ok(ans)
 }
 
-fn from_vec_to_path(vec: Vec<String>) -> String {
+pub fn from_vec_to_path(vec: Vec<String>) -> String {
     let mut ans = String::new();
     ans.push('/');
     for i in vec {

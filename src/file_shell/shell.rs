@@ -1,6 +1,10 @@
-use std::io::{self, stdin, Write};
+use std::{
+    fmt::format,
+    io::{self, stdin, Write},
+    slice::SliceIndex,
+};
 
-use crate::file_shell::bin;
+use crate::file_shell::{bin, root_file::root_file::RawRootFile};
 
 pub struct Shell {
     path: String,
@@ -41,6 +45,50 @@ impl Shell {
                 match output {
                     Ok(_) => String::new(),
                     Err(e) => format!("{:?}", e),
+                }
+            }
+            "touch" => {
+                let output = bin::touch::touch(&self.path, command.get(1).unwrap().as_str());
+                match output {
+                    Ok(_) => String::new(),
+                    Err(e) => format!("{:?}", e),
+                }
+            }
+            "cat" => {
+                let mut path = RawRootFile::parse_path(&self.path);
+                path.push(command.get(1).unwrap().clone());
+                let file_path = bin::cd::from_vec_to_path(path);
+                let output = bin::cat::cat(file_path.as_str());
+                match output {
+                    Ok(s) => s,
+                    Err(e) => format!("{:?}", e),
+                }
+            }
+            "write" => {
+                let mut path = RawRootFile::parse_path(&self.path);
+                path.push(command.get(1).unwrap().clone());
+                let file_path = bin::cd::from_vec_to_path(path);
+                let content = command.get(2).unwrap();
+                let output = bin::write::write(file_path.as_str(), content.clone());
+                match output {
+                    Ok(s) => {
+                        format!("{s} 字节被写入")
+                    }
+                    Err(e) => {
+                        format!("{:?}", e)
+                    }
+                }
+            }
+            "debug" => {
+                let mut path = RawRootFile::parse_path(&self.path);
+                path.push(command.get(1).unwrap().clone());
+                let file_path = bin::cd::from_vec_to_path(path);
+                let output = bin::debug::debug(&file_path);
+                match output {
+                    Ok(s) => s,
+                    Err(e) => {
+                        format!("{:?}", e)
+                    }
                 }
             }
             "" => "".to_string(),
