@@ -113,4 +113,8 @@ fn test1() {
 }
 
 #[test]
-fn test2() {}
+fn test2_init() {
+    let mut bitmap=BlockBitmap::new(BlockAddr { addr: 1 },102400,401);
+    println!("{:?}",bitmap);
+    bitmap.init();
+}

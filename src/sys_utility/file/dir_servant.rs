@@ -126,12 +126,12 @@ impl DirServant {
         let mut entry: BlockAddr;
         match file_type {
             FileType::Dir => {
-                let mut temp = ZDir::new();
+                let mut temp = ZDir::new()?;
                 entry = temp.get_block_entry();
                 temp.close();
             }
             FileType::File => {
-                let mut temp = ZFile::new();
+                let mut temp = ZFile::new()?;
                 entry = temp.get_block_entry();
                 temp.close();
             }

@@ -15,7 +15,7 @@ pub fn mkdir(current_path: &str, dir_name: &str) -> Result<(), FileSystemOperati
     let ft = ft.lock();
     let mut ft = ft_unwrap(ft)?;
     let ls_dir = ft.open(current_path)?;
-
+    drop(ft);
     let dir = ls_dir.as_ref().write();
     let mut dir_guard = match dir {
         Ok(dir) => dir,

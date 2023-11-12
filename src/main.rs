@@ -17,7 +17,7 @@ mod test;
 static mut SUPER_BLOCK: Option<Arc<Mutex<SuperBlock>>> = None;
 
 fn main() -> std::io::Result<()> {
-    match SuperBlock::init_main("../test") {
+    match SuperBlock::init_main("../test3") {
         Ok(_) => {
             println!("init main success");
         }
@@ -25,7 +25,7 @@ fn main() -> std::io::Result<()> {
             println!("init main error:{:?}", e);
         }
     }
-
+    SuperBlock::init_rootdir();
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
 
     let pool = ThreadPool::new(5);

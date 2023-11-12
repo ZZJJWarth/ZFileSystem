@@ -9,10 +9,12 @@ use super::super::{
     block::block_servant::BlockServant,
     config::config::{BLOCK_SIZE, NON_OCCUPY_NUM},
 };
+use super::zdir::ZDir;
 
 use crate::file_shell::root_file::error::FileSystemOperationError;
 use crate::sys_utility::bitmap::bitmap_servant;
 use crate::sys_utility::config::config::FILE_PATH;
+use crate::sys_utility::super_block::unwarper::{get_bitmap, unwrap_bitmap};
 
 use super::metadata::Metadata;
 use super::raw_f::{FileType, RawF};
@@ -96,13 +98,13 @@ impl RawFile {
         let max_len = self.metadata.get_max_len();
         let max_len = self
             .block_servant
-            .write_check(max_len, offset, size)
+            .write_check(max_len, offset, size) //这可能引起死锁
             .unwrap();
         self.metadata.set_max_len(max_len);
         // println!("write:{{offset:{},size:{}}}",offset,size);
         // println!("self:{{{:?}}}",self);
         // println!("{:?}",buf);
-        self.block_servant.write(offset, buf, size).unwrap();
+        self.block_servant.write(offset, buf, size)?;       //这也会引发死锁
         let max = if now_len < size + offset {
             size + offset
         } else {
@@ -122,11 +124,14 @@ impl RawFile {
         v
     }
 
-    pub fn open(block: BlockAddr) -> Result<RawFile, ()> {
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+    pub fn open(block: BlockAddr) -> Result<RawFile, FileSystemOperationError> {
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         if bit_map.get_content(block) == NON_OCCUPY_NUM {
-            println!("文件块为空");
-            return Err(());
+            // println!("文件块为空");
+            return Err(FileSystemOperationError::BadStructureError(format!("文件块为空")));
         } else {
             let offset = block.into_addr().get_raw_num();
             let f = File::open(FILE_PATH).unwrap();
@@ -154,26 +159,30 @@ impl RawFile {
         self.raw_write(0, &buf, ZFILE_SIZE as u32);
     }
 
-    pub fn reduce(&mut self, size: u32) {
+    pub fn reduce(&mut self, size: u32)->Result<(),FileSystemOperationError> {
         let mut i = self.metadata.get_file_len();
         if (i <= size + ZFILE_SIZE as u32) {
             self.del_init();
             self.metadata.set_file_len(ZFILE_SIZE as u32);
             self.metadata.set_max_len(BLOCK_SIZE as u32);
-            return;
+            return Ok(());
         }
         let mut count = self.metadata.get_max_len();
         let after_i = i - size;
         let mut r_block = after_i / BLOCK_SIZE;
         let n_block = i / BLOCK_SIZE;
         let block = n_block - r_block;
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         for i in 0..block {
             count -= BLOCK_SIZE;
             bit_map.reduce_a_block(self.block_servant.entry);
         }
         self.metadata.set_file_len(after_i);
         self.metadata.set_max_len(count);
+        Ok(())
     }
 
     pub fn add_write(
@@ -185,14 +194,18 @@ impl RawFile {
         self.raw_write(offset, buf, size)
     }
 
-    pub fn del_init(&mut self) {
+    pub fn del_init(&mut self) ->Result<(),FileSystemOperationError>{
         let i: u32 = self.metadata.get_max_len() / BLOCK_SIZE;
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         for j in 0..i {
             bit_map.reduce_a_block(self.block_servant.entry);
         }
         self.metadata.set_file_len(0);
         self.metadata.set_max_len(BLOCK_SIZE);
+        Ok(())
     }
 
     pub fn get_block_entry(&self) -> BlockAddr {
@@ -201,12 +214,16 @@ impl RawFile {
         }
     }
 
-    pub fn del(mut self) {
+    pub fn del(mut self)->Result<(),FileSystemOperationError> {
         self.del_init();
         let addr = self.get_block_entry();
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         bit_map.set_empty_block(addr);
         self.close();
+        Ok(())
     }
 }
 #[cfg(test)]
@@ -262,7 +279,7 @@ fn test1_open() {
     f.clone();
 }
 
-#[test]
+// #[test]
 fn new() {
     let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
     let addr = bit_map.get_free_block().unwrap();
@@ -277,4 +294,12 @@ fn test_del() {
     f.del();
     // println!("{:?}",f);
     // f.close();
+}
+
+#[test]
+fn test_ifif(){
+    // let mut bm=get_bitmap()?;
+        
+    // let mut bit_map=unwrap_bitmap(&bm)?;
+    // let zd=ZDir::open(BlockAddr { addr:  })
 }

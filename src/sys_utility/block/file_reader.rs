@@ -4,10 +4,10 @@ use std::{
     mem::transmute,
 };
 
-use crate::sys_utility::{
+use crate::{sys_utility::{
     block::block_servant::BlockServantOffsetRange, block::file_writer::AddrRange,
-    config::config::BLOCK_SIZE,
-};
+    config::config::BLOCK_SIZE, super_block::unwarper::{get_bitmap, unwrap_bitmap},
+}, file_shell::root_file::error::FileSystemOperationError};
 
 use super::super::{
     addr::addr::BlockAddr, bitmap::bitmap_servant::BlockOffset, bitmap::block_bit_map::BlockBitmap,
@@ -40,10 +40,13 @@ impl FileReader {
         num
     }
 
-    pub fn read(&mut self, range: VirtualRange, v: &mut Vec<u8>, block: BlockAddr) {
+    pub fn read(&mut self, range: VirtualRange, v: &mut Vec<u8>, block: BlockAddr)->Result<(),FileSystemOperationError> {
         let n = range.relative_start_block_gap();
         //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         let mut now_block = block;
         for i in 0..n {
             now_block = bit_map.get_content(now_block);
@@ -64,6 +67,7 @@ impl FileReader {
             }
             now_block = bit_map.get_content(now_block);
         }
+        Ok(())
     }
 
     fn read_block(&mut self, block: BlockAddr) {

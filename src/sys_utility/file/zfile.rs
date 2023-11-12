@@ -1,6 +1,6 @@
 use crate::{
     file_shell::root_file::error::FileSystemOperationError,
-    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap},
+    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, super_block::unwarper::{get_bitmap, unwrap_bitmap}},
 };
 
 use super::{
@@ -13,12 +13,16 @@ pub struct ZFile {
 }
 
 impl ZFile {
-    pub fn new() -> ZFile {
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+    pub fn new() -> Result<ZFile,FileSystemOperationError> {
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
         let entry = bit_map.get_free_block().unwrap();
-        ZFile {
+        drop(bit_map);
+        Ok(ZFile {
             raw: RawFile::new(super::raw_f::FileType::File, entry),
-        }
+        })
     }
 
     pub fn open(ba: BlockAddr) -> ZFile {
@@ -35,7 +39,7 @@ impl ZFile {
         let mut f = ZFile { raw };
         f.close();
     }
-
+///面向用户的文字读函数，不需要考虑偏移情况
     pub fn char_read(&self, offset: u32, size: u32) -> Vec<char> {
         let mut buf: Vec<u8> = vec![];
         self.raw.read(offset, &mut buf, size);
@@ -76,6 +80,13 @@ impl ZFile {
         let buf = content.as_bytes().to_vec();
         // println!("{:?}",buf);
         self.raw.add_write(&buf, content.len() as u32)
+    }
+
+    pub fn cp_from(&mut self,source:&ZFile)->Result<(),FileSystemOperationError>{
+        let length=source.raw.metadata().get_file_len();
+        let content= source.char_read(0, length);
+        self.char_write(0, length, content);
+        Ok(())
     }
 }
 

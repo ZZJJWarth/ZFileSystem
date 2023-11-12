@@ -33,6 +33,7 @@ impl FileTable {
         }
     }
     ///供用户使用的open函数，根据地址获得文件的指针,这是打开文件
+    ///本函数接收的是绝对地址
     pub fn open(&mut self, addr: &str) -> Result<Arc<RwLock<VFile>>, FileSystemOperationError> {
         let addr = String::from(addr);
         // for i in self.hash_map.keys() {

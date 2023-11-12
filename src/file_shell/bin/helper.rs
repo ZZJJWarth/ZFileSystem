@@ -6,16 +6,16 @@ use crate::{
 };
 
 pub fn get_ft() -> Result<Arc<Mutex<FileTable>>, FileSystemOperationError> {
-    // let sb=unsafe{match &SUPER_BLOCK{
-    //     Some(x)=>x,
-    //     None=>return Err(FileSystemOperationError::InitError(format!("文件系统初始化失败"))),
-    // }};
-    // let ft=match sb.lock().get_file_table(){
-    //     Some(x)=>x,
-    //     None=>return Err(FileSystemOperationError::InitError(format!("文件系统初始化失败"))),
-    // };
-    // Ok(ft)
-    todo!()
+    let sb=unsafe{match &SUPER_BLOCK{
+        Some(x)=>x,
+        None=>return Err(FileSystemOperationError::InitError(format!("文件系统初始化失败"))),
+    }};
+    let ft=match sb.lock().unwrap().get_file_table(){
+        Some(x)=>x,
+        None=>return Err(FileSystemOperationError::InitError(format!("文件系统初始化失败"))),
+    };
+    Ok(ft)
+    // todo!()
 }
 
 // pub fn get_ft_guard()->Result<Box<MutexGuard<'static,FileTable>>, FileSystemOperationError>{

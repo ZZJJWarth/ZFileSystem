@@ -1,3 +1,5 @@
+use crate::{SUPER_BLOCK, sys_utility::{super_block::unwarper::{get_bitmap,  unwrap_bitmap}, bitmap}, file_shell::root_file::error::FileSystemOperationError};
+
 use super::super::{
     addr::addr::{Addr, BlockAddr},
     bitmap::block_bit_map::BlockBitmap,
@@ -19,7 +21,7 @@ impl BlockServant {
         BlockServant { entry }
     }
 
-    pub fn write(&self, offset: u32, data: &Vec<u8>, size: u32) -> Result<(), ()> {
+    pub fn write(&self, offset: u32, data: &Vec<u8>, size: u32) -> Result<(), FileSystemOperationError> {
         // println!("offset:{}",offset);
         let mut fw = FileWriter::new(super::file_writer::IoOption::Other(BLOCK_SIZE));
         let mut ptr = data.as_slice();
@@ -28,8 +30,11 @@ impl BlockServant {
         let range = VirtualRange::with_size(start, size);
         let n = range.relative_start_block_gap();
         // println!("n:{}", n);
-        //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap Done
+        let mut bm=get_bitmap()?;
+        
+        let mut bit_map=unwrap_bitmap(&bm)?;
+
         let mut now_block = self.entry;
 
         for i in 0..n {
@@ -75,12 +80,15 @@ impl BlockServant {
         }
     }
 
-    pub fn write_check(&self, file_max_len: u32, offset: u32, size: u32) -> Result<u32, ()> {
+    pub fn write_check(&self, file_max_len: u32, offset: u32, size: u32) -> Result<u32, FileSystemOperationError> {
         if (file_max_len >= offset + size) {
             Ok(file_max_len)
         } else {
             //todo:这个bitmap是测试使用的，真正运行的时候应该是用应该static的bitmap
-            let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+            // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+            let mut bm=get_bitmap()?;
+        
+            let mut bit_map=unwrap_bitmap(&bm)?;
             let mut now_len = file_max_len;
             let mut last_block = bit_map.find_final_block(self.entry).unwrap();
             // println!("last_block:{:?}",last_block);

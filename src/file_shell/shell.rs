@@ -27,7 +27,11 @@ impl Shell {
         // let mut input=String::new();
         let command = Self::parse_command(&input);
         let head = self.head();
-        let content = match command.get(0).unwrap().as_str() {
+        let cm=match command.get(0){
+            Some(s)=>s,
+            None=>return format!("")
+        };
+        let content = match cm.as_str() {
             "EXIT" => "".to_string(),
             "ls" => {
                 let output = bin::ls::ls(&self.path);
@@ -47,43 +51,82 @@ impl Shell {
                 }
             }
             "mkdir" => {
-                let output = bin::mkdir::mkdir(&self.path, command.get(1).unwrap().as_str());
-                match output {
-                    Ok(_) => String::new(),
-                    Err(e) => format!("{:?}", e),
+                match command.get(1){
+                    Some(name)=>{
+                        let output = bin::mkdir::mkdir(&self.path, name.as_str());
+                        match output {
+                            Ok(_) => String::new(),
+                            Err(e) => format!("{:?}", e,),
+                        }
+                    },
+                    None=>{
+                        format!("mkdir <Filename>:缺乏参数 <Filename>")
+                    }
                 }
+                
             }
             "touch" => {
-                let output = bin::touch::touch(&self.path, command.get(1).unwrap().as_str());
-                match output {
-                    Ok(_) => String::new(),
-                    Err(e) => format!("{:?}", e),
+                match command.get(1){
+                    Some(name)=>{
+                        let output = bin::touch::touch(&self.path, name.as_str());
+                        match output {
+                            Ok(_) => String::new(),
+                            Err(e) => format!("{:?}", e,),
+                        }
+                    },
+                    None=>{
+                        format!("mkdir <Filename>:缺乏参数 <Filename>")
+                    }
                 }
             }
             "cat" => {
                 let mut path = RawRootFile::parse_path(&self.path);
-                path.push(command.get(1).unwrap().clone());
-                let file_path = bin::cd::from_vec_to_path(path);
-                let output = bin::cat::cat(file_path.as_str());
-                match output {
-                    Ok(s) => s,
-                    Err(e) => format!("{:?}", e),
+                match command.get(1){
+                    Some(s)=>{
+                        path.push(s.clone());
+                        let file_path = bin::cd::from_vec_to_path(path);
+                        let output = bin::cat::cat(file_path.as_str());
+                        match output {
+                            Ok(s) => s,
+                            Err(e) => format!("{:?}", e),
+                        }
+                    },
+                    None=>{
+                        format!("cat <File>:缺乏参数 <File>")
+                    }
                 }
+                
             }
             "write" => {
-                let mut path = RawRootFile::parse_path(&self.path);
-                path.push(command.get(1).unwrap().clone());
-                let file_path = bin::cd::from_vec_to_path(path);
-                let content = command.get(2).unwrap();
-                let output = bin::write::write(file_path.as_str(), content.clone());
-                match output {
-                    Ok(s) => {
-                        format!("{s} 字节被写入")
-                    }
-                    Err(e) => {
-                        format!("{:?}", e)
+                match command.get(1){
+                    Some(path1)=>{
+                        let mut path = RawRootFile::parse_path(&self.path);
+                        path.push(path1.clone());
+                        let file_path = bin::cd::from_vec_to_path(path);
+                        match command.get(2){
+                            Some(content)=>{
+                                // let content = command.get(2).unwrap();
+                                let output = bin::write::write(file_path.as_str(), content.clone());
+                                match output {
+                                    Ok(s) => {
+                                        format!("{s} 字节被写入")
+                                    }
+                                    Err(e) => {
+                                        format!("{:?}", e)
+                                    }
+                                }
+                            },
+                            None=>{
+                                format!("write <File> <Content>:缺乏参数 Content")
+                            }
+                        }
+                    },
+                    None=>{
+                        format!("write <File> <Content>:缺乏参数 <File>")
                     }
                 }
+                
+                
             }
             "debug" => {
                 let mut path = RawRootFile::parse_path(&self.path);
@@ -96,6 +139,9 @@ impl Shell {
                         format!("{:?}", e)
                     }
                 }
+            }
+            "cp"=>{
+                
             }
             "" => "".to_string(),
             _ => {

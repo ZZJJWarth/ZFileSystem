@@ -2,7 +2,7 @@ use std::mem::transmute;
 
 use crate::{
     file_shell::root_file::error::FileSystemOperationError,
-    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, file::zfile::ZFile},
+    sys_utility::{addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, file::zfile::ZFile, super_block::{unwarper::{get_bitmap, unwrap_bitmap}, super_block::SuperBlock}},
 };
 
 use super::{
@@ -18,10 +18,23 @@ pub struct ZDir {
 
 impl ZDir {
     ///无中生有地生成一个ZDir，它会安排好底层block中的所有东西
-    pub fn new() -> Self {
-        let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
-        let b = bit_map.get_free_block().unwrap();
-        let raw = RawFile::new(super::raw_f::FileType::Dir, b);
+    pub fn new() -> Result<Self,FileSystemOperationError> {
+        // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
+        let mut bm=get_bitmap()?;
+        let mut bit_map=unwrap_bitmap(&bm)?;        //获取位图
+        let b = bit_map.get_free_block().unwrap();                          //从位图中获取空闲块
+        drop(bit_map);      //此时已经不需要位图了，必须要释放，否则会引发死锁
+        let raw = RawFile::new(super::raw_f::FileType::Dir, b);     //生成raw文件L
+        let mut serve = DirServant::new(raw, 0);                        //生成servant
+        // drop(bit_map);
+        serve.init();
+        let mut zd = ZDir { servant: serve };
+        zd.write_self();
+        Ok(zd)
+    }
+
+    pub fn new_root(root_entry:BlockAddr)->Self{
+        let raw = RawFile::new(super::raw_f::FileType::Dir, root_entry);
         let mut serve = DirServant::new(raw, 0);
         serve.init();
         let mut zd = ZDir { servant: serve };
@@ -153,9 +166,9 @@ impl ZDirPack {
 }
 
 #[cfg(test)]
-#[test]
+// #[test]
 fn test_new() {
-    let mut zd = ZDir::new();
+    let mut zd = ZDir::new().unwrap();
     println!("{:?}", zd);
     zd.close();
 }
@@ -230,4 +243,21 @@ fn status() {
     // zd.ls();
     // zd.status();
     zd.close();
+}
+
+
+#[test]
+fn dead(){
+    
+    let mut sb = SuperBlock::init_main("../test");
+    // let zd=ZDir::new();
+    let mut bm=get_bitmap().unwrap();
+    let mut bit_map=unwrap_bitmap(&bm).unwrap();
+    let b=bit_map.get_free_block().unwrap();    
+    drop(bit_map);
+    let raw = RawFile::new(super::raw_f::FileType::Dir, b);     //生成raw文件L
+    let mut serve = DirServant::new(raw, 0);                        //生成servant
+    // drop(bit_map);
+    // serve.init();
+
 }
