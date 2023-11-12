@@ -12,5 +12,5 @@ pub enum FileSystemOperationError {
     InitError(String),
     BadStructureError(String),
     LackArgumentsError(String),
-    FileCreateError(String)
+    FileCreateError(String),
 }

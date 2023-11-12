@@ -9,12 +9,18 @@ use crate::{
         root_file::{error::FileSystemOperationError, root_file::RawRootFile},
     },
     sys_utility::{
-        addr::addr::BlockAddr, bitmap::block_bit_map::BlockBitmap, config::config::{BLOCK_SIZE, END_NUM}, file::zdir::ZDir,
+        addr::addr::BlockAddr,
+        bitmap::block_bit_map::BlockBitmap,
+        config::config::{BLOCK_SIZE, END_NUM},
+        file::zdir::ZDir,
     },
     SUPER_BLOCK,
 };
 
-use super::{super_pack::SuperPack, unwarper::{get_bitmap, unwrap_bitmap}};
+use super::{
+    super_pack::SuperPack,
+    unwarper::{get_bitmap, unwrap_bitmap},
+};
 
 #[derive(Debug)]
 pub struct SuperBlock {
@@ -22,15 +28,15 @@ pub struct SuperBlock {
     reserve_num: u32,         //保留给超级块的块数
     bitmap_num: u32,          //保留给bitmap的块数
     root_dir_addr: BlockAddr, //根目录的地址
-    magic_num:u64,            //魔数
-    first_init:bool,          //是否已经初始化
+    magic_num: u64,           //魔数
+    first_init: bool,         //是否已经初始化
     bitmap: Option<Arc<Mutex<BlockBitmap>>>,
     file_table: Option<Arc<Mutex<FileTable>>>,
 }
 
 impl SuperBlock {
-    pub const MAGIC_FLAG:u64=1130423011300520113;
-    pub const SUPER_BLOCK_SIZE:u32=32;
+    pub const MAGIC_FLAG: u64 = 1130423011300520113;
+    pub const SUPER_BLOCK_SIZE: u32 = 32;
     pub fn new(disk_path: &str) -> Result<SuperBlock, FileSystemOperationError> {
         let f = File::open(disk_path);
         let f = match f {
@@ -47,8 +53,8 @@ impl SuperBlock {
             reserve_num,
             bitmap_num,
             root_dir_addr,
-            first_init:true,
-            magic_num:Self::MAGIC_FLAG,
+            first_init: true,
+            magic_num: Self::MAGIC_FLAG,
             bitmap: None,
             file_table: None,
         })
@@ -61,20 +67,19 @@ impl SuperBlock {
             self.bitmap_num,
             self.reserve_num + self.reserve_num + self.bitmap_num,
         );
-        if bitmap.check_block_empty(self.root_dir_addr){
-            
+        if bitmap.check_block_empty(self.root_dir_addr) {
             bitmap.set_value(self.root_dir_addr, END_NUM);
         }
         // bitmap.set_value(BlockAddr { addr:  }, value)
-        
+
         let bitmap = Arc::new(Mutex::new(bitmap));
         let root_file = RawRootFile::new(Arc::clone(&bitmap), self.root_dir_addr);
         let file_table = FileTable::init_new(root_file);
-        
+
         self.bitmap = Some(bitmap);
         self.file_table = Some(Arc::new(Mutex::new(file_table)));
-        
-    Ok(())
+
+        Ok(())
     }
 
     pub fn get_file_table(&self) -> Option<Arc<Mutex<FileTable>>> {
@@ -86,91 +91,115 @@ impl SuperBlock {
     }
 
     pub fn init_main(path: &str) -> Result<(), FileSystemOperationError> {
-        let temp=SuperPack::load(path)?;
-        let mut sb=if temp.is_legal(){
+        let temp = SuperPack::load(path)?;
+        let mut sb = if temp.is_legal() {
             SuperBlock::from(temp)
-        }else{
+        } else {
             SuperBlock::new(path)?
         };
         // let mut sb = SuperBlock::new(path)?;
         sb.init();
         // sb.write_super_block(path)?;
-        
+
         // sb.write_super_block(path)?;
         unsafe {
             SUPER_BLOCK = Some(Arc::new(Mutex::new(sb)));
         }
-        
+
         Ok(())
     }
 
-    pub fn init_rootdir(){
-        let a=unsafe {
-            &SUPER_BLOCK
+    pub fn init_rootdir() {
+        let a = unsafe { &SUPER_BLOCK };
+        let a = match a {
+            Some(s) => s,
+            None => {
+                return;
+            }
         };
-        let a=match a{
-            Some(s)=>s,
-            None=>{return;}
-        };
-        let mut flag=false;
-        let mut dir_root:Option<BlockAddr>=None;
+        let mut flag = false;
+        let mut dir_root: Option<BlockAddr> = None;
         {
-            let mut temp=a.lock().unwrap();
-            flag=temp.first_init;
-            dir_root=Some(temp.root_dir_addr);
+            let mut temp = a.lock().unwrap();
+            flag = temp.first_init;
+            dir_root = Some(temp.root_dir_addr);
         }
-        if flag{
+        if flag {
             ZDir::new_root(dir_root.unwrap());
-            let mut bm=get_bitmap().unwrap();
-            let mut bit_map=unwrap_bitmap(&bm).unwrap();
+            let mut bm = get_bitmap().unwrap();
+            let mut bit_map = unwrap_bitmap(&bm).unwrap();
             bit_map.init();
             drop(bit_map);
-            let mut temp=a.lock().unwrap();
-            
-            temp.first_init=false;
+            let mut temp = a.lock().unwrap();
+
+            temp.first_init = false;
             temp.write_super_block("../test3");
         }
-            //处理死锁
+        //处理死锁
     }
 
     fn into_super_pack(&self) -> SuperPack {
-        SuperPack { block_num: self.block_num, reserve_num: self.reserve_num, bitmap_num: self.bitmap_num, root_dir_addr: self.root_dir_addr, magic_num: self.magic_num,first_init:self.first_init }
+        SuperPack {
+            block_num: self.block_num,
+            reserve_num: self.reserve_num,
+            bitmap_num: self.bitmap_num,
+            root_dir_addr: self.root_dir_addr,
+            magic_num: self.magic_num,
+            first_init: self.first_init,
+        }
     }
 
-    fn write_super_block(&self,path: &str)->Result<(),FileSystemOperationError>{
-        let pk=self.into_super_pack();
+    fn write_super_block(&self, path: &str) -> Result<(), FileSystemOperationError> {
+        let pk = self.into_super_pack();
         pk.dump(path)
     }
-
-
 }
 
-impl From<SuperPack> for SuperBlock{
+impl From<SuperPack> for SuperBlock {
     fn from(value: SuperPack) -> Self {
-        Self { block_num: value.block_num, reserve_num: value.reserve_num, bitmap_num: value.bitmap_num, root_dir_addr: value.root_dir_addr, magic_num: value.magic_num,first_init:value.first_init, bitmap: None, file_table: None }
+        Self {
+            block_num: value.block_num,
+            reserve_num: value.reserve_num,
+            bitmap_num: value.bitmap_num,
+            root_dir_addr: value.root_dir_addr,
+            magic_num: value.magic_num,
+            first_init: value.first_init,
+            bitmap: None,
+            file_table: None,
+        }
     }
 }
-
-
 
 #[cfg(test)]
 #[test]
 fn test_new() {
-    use crate::sys_utility::super_block::unwarper::unwrap_bitmap;
+    use crate::{
+        file_shell::bin::helper::{ft_unwrap, get_ft},
+        sys_utility::{file::zfile::ZFile, super_block::unwarper::unwrap_bitmap},
+    };
 
     use super::unwarper::get_bitmap;
 
     let mut sb = SuperBlock::init_main("../test3");
+
+    let ft = get_ft().unwrap();
+    let ft = ft.lock();
+    let mut ft = ft_unwrap(ft).unwrap();
+    ft.check();
+    // SuperBlock::init_rootdir();
     // unsafe{println!("{:?}",&SUPER_BLOCK);}
     // // let zd=ZDir::new();
     // let mut bm=get_bitmap().unwrap();
     // let mut bit_map=unwrap_bitmap(&bm).unwrap();
-    // let a=bit_map.get_free_block().unwrap();    
-    
+    // let a=bit_map.get_free_block().unwrap();
+
     // println!("{:?}",a);
 
-    let mut zd=ZDir::open(BlockAddr { addr: 2 }).unwrap();
-    println!("{:?}",zd);
+    // let mut zd=ZDir::open(BlockAddr { addr: 2 }).unwrap();
+    // let mut zf=ZFile::open(BlockAddr { addr: 4 });
+    // zf.write(format!("123456"));
+    // println!("{:?}",zf);
+    // zf.close();
     // zd.touch("hh");
     // SuperBlock::init_rootdir();
 }

@@ -1,14 +1,17 @@
-use crate::{sys_utility::{
-    addr::addr::BlockAddr,
-    bitmap::block_bit_map::BlockBitmap,
-    config::config::NON_OCCUPY_NUM,
-    file::{
-        raw_f::{FileType, RawF},
-        raw_file::RawFile,
-        zdir::ZDir,
-        zfile::ZFile,
+use crate::{
+    file_shell::bin::helper::{ft_unwrap, get_ft},
+    sys_utility::{
+        addr::addr::BlockAddr,
+        bitmap::block_bit_map::BlockBitmap,
+        config::config::NON_OCCUPY_NUM,
+        file::{
+            raw_f::{FileType, RawF},
+            raw_file::RawFile,
+            zdir::ZDir,
+            zfile::ZFile,
+        },
     },
-}, file_shell::bin::helper::{get_ft, ft_unwrap}};
+};
 use std::{
     cell::RefCell,
     clone,
@@ -63,45 +66,61 @@ impl VFile {
     }
 
     ///给定一个path(绝对路径)，和新文件的名字，把self复制到这个文件中
-    pub fn file_cp(&self,path:&str,file_name:&str)->Result<(),FileSystemOperationError>{
-        match self{
-            VFile::ZDir(_)=>{
-                return Err(FileSystemOperationError::NotDirError(format!("cp:不允许复制目录")));
-            },
-            VFile::ZFile(f)=>{
+    pub fn file_cp(&self, path: &str, file_name: &str) -> Result<(), FileSystemOperationError> {
+        match self {
+            VFile::ZDir(_) => {
+                return Err(FileSystemOperationError::NotDirError(format!(
+                    "cp:不允许复制目录"
+                )));
+            }
+            VFile::ZFile(f) => {
                 let ft = get_ft()?;
                 let ft = ft.lock();
                 let mut ft = ft_unwrap(ft)?;
-                let dest_dir_ptr=ft.open(path)?;
+                let dest_dir_ptr = ft.open(path)?;
                 drop(ft);
-                let dir_s=dest_dir_ptr.as_ref().write();
-                let mut dir=match dir_s{
-                    Ok(s)=>s,
-                    Err(_)=>{
-                        return Err(FileSystemOperationError::LockError(format!("未能获取目录锁")));
+                let dir_s = dest_dir_ptr.as_ref().write();
+                let mut dir = match dir_s {
+                    Ok(s) => s,
+                    Err(_) => {
+                        return Err(FileSystemOperationError::LockError(format!(
+                            "未能获取目录锁"
+                        )));
                     }
                 };
                 dir.dir_touch(file_name)?;
-                let mut dest_file=dir.dir_open(file_name)?;
+                let mut dest_file = dir.dir_open(file_name)?;
                 dest_file.cp_from(f)
             }
         }
+
         // Ok(())
     }
 
-    pub fn dir_open(&mut self,name: &str)->Result<ZFile,FileSystemOperationError>{
-        match self{
-            Self::ZDir(d)=>{
-                let entry=match d.get_item_block_entry(name){
-                    Some(s)=>s,
-                    None=>{return Err(FileSystemOperationError::FileCreateError(format!("复制文件时不存在该文件，文件未生成")));}
+    pub fn close(&mut self) -> Result<(), FileSystemOperationError> {
+        match self {
+            Self::ZDir(d) => d.close(),
+            Self::ZFile(f) => f.close(),
+        }
+    }
+
+    pub fn dir_open(&mut self, name: &str) -> Result<ZFile, FileSystemOperationError> {
+        match self {
+            Self::ZDir(d) => {
+                let entry = match d.get_item_block_entry(name) {
+                    Some(s) => s,
+                    None => {
+                        return Err(FileSystemOperationError::FileCreateError(format!(
+                            "复制文件时不存在该文件，文件未生成"
+                        )));
+                    }
                 };
-                let f=ZFile::open(entry);
+                let f = ZFile::open(entry);
                 Ok(f)
-            },
-            Self::ZFile(_)=>{
-                Err(FileSystemOperationError::NotDirError(format!("这里需要目录，但是却是文件")))
             }
+            Self::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "这里需要目录，但是却是文件"
+            ))),
         }
     }
 }

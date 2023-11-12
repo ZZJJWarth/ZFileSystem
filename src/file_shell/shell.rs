@@ -4,7 +4,10 @@ use std::{
     slice::SliceIndex,
 };
 
-use crate::file_shell::{bin, root_file::root_file::RawRootFile};
+use crate::file_shell::{
+    bin,
+    root_file::{error::FileSystemOperationError, root_file::RawRootFile},
+};
 
 pub struct Shell {
     path: String,
@@ -27,9 +30,9 @@ impl Shell {
         // let mut input=String::new();
         let command = Self::parse_command(&input);
         let head = self.head();
-        let cm=match command.get(0){
-            Some(s)=>s,
-            None=>return format!("")
+        let cm = match command.get(0) {
+            Some(s) => s,
+            None => return format!(""),
         };
         let content = match cm.as_str() {
             "EXIT" => "".to_string(),
@@ -50,39 +53,34 @@ impl Shell {
                     Err(e) => format!("{:?}", e),
                 }
             }
-            "mkdir" => {
-                match command.get(1){
-                    Some(name)=>{
-                        let output = bin::mkdir::mkdir(&self.path, name.as_str());
-                        match output {
-                            Ok(_) => String::new(),
-                            Err(e) => format!("{:?}", e,),
-                        }
-                    },
-                    None=>{
-                        format!("mkdir <Filename>:缺乏参数 <Filename>")
+            "mkdir" => match command.get(1) {
+                Some(name) => {
+                    let output = bin::mkdir::mkdir(&self.path, name.as_str());
+                    match output {
+                        Ok(_) => String::new(),
+                        Err(e) => format!("{:?}", e,),
                     }
                 }
-                
-            }
-            "touch" => {
-                match command.get(1){
-                    Some(name)=>{
-                        let output = bin::touch::touch(&self.path, name.as_str());
-                        match output {
-                            Ok(_) => String::new(),
-                            Err(e) => format!("{:?}", e,),
-                        }
-                    },
-                    None=>{
-                        format!("mkdir <Filename>:缺乏参数 <Filename>")
+                None => {
+                    format!("mkdir <Filename>:缺乏参数 <Filename>")
+                }
+            },
+            "touch" => match command.get(1) {
+                Some(name) => {
+                    let output = bin::touch::touch(&self.path, name.as_str());
+                    match output {
+                        Ok(_) => String::new(),
+                        Err(e) => format!("{:?}", e,),
                     }
                 }
-            }
+                None => {
+                    format!("mkdir <Filename>:缺乏参数 <Filename>")
+                }
+            },
             "cat" => {
                 let mut path = RawRootFile::parse_path(&self.path);
-                match command.get(1){
-                    Some(s)=>{
+                match command.get(1) {
+                    Some(s) => {
                         path.push(s.clone());
                         let file_path = bin::cd::from_vec_to_path(path);
                         let output = bin::cat::cat(file_path.as_str());
@@ -90,21 +88,20 @@ impl Shell {
                             Ok(s) => s,
                             Err(e) => format!("{:?}", e),
                         }
-                    },
-                    None=>{
+                    }
+                    None => {
                         format!("cat <File>:缺乏参数 <File>")
                     }
                 }
-                
             }
             "write" => {
-                match command.get(1){
-                    Some(path1)=>{
+                match command.get(1) {
+                    Some(path1) => {
                         let mut path = RawRootFile::parse_path(&self.path);
                         path.push(path1.clone());
                         let file_path = bin::cd::from_vec_to_path(path);
-                        match command.get(2){
-                            Some(content)=>{
+                        match command.get(2) {
+                            Some(content) => {
                                 // let content = command.get(2).unwrap();
                                 let output = bin::write::write(file_path.as_str(), content.clone());
                                 match output {
@@ -115,18 +112,16 @@ impl Shell {
                                         format!("{:?}", e)
                                     }
                                 }
-                            },
-                            None=>{
+                            }
+                            None => {
                                 format!("write <File> <Content>:缺乏参数 Content")
                             }
                         }
-                    },
-                    None=>{
+                    }
+                    None => {
                         format!("write <File> <Content>:缺乏参数 <File>")
                     }
                 }
-                
-                
             }
             "debug" => {
                 let mut path = RawRootFile::parse_path(&self.path);
@@ -140,8 +135,53 @@ impl Shell {
                     }
                 }
             }
-            "cp"=>{
-                
+            "cp" => match command.get(1) {
+                Some(name) => {
+                    let mut path = RawRootFile::parse_path(&self.path);
+                    path.push(name.clone());
+                    let file_path = bin::cd::from_vec_to_path(path);
+                    match command.get(2) {
+                        Some(dname) => {
+                            let output = bin::cp::cp(&file_path, &self.path, &dname);
+                            match output {
+                                Ok(_) => {
+                                    format!("")
+                                }
+                                Err(e) => {
+                                    format!("{:?}", e)
+                                }
+                            }
+                        }
+                        None => {
+                            format!(
+                                "{:?}",
+                                FileSystemOperationError::LackArgumentsError(format!(
+                                    "cp <source> <dest>:缺乏参数dest"
+                                ))
+                            )
+                        }
+                    }
+                }
+                None => {
+                    format!(
+                        "{:?}",
+                        FileSystemOperationError::LackArgumentsError(format!(
+                            "cp <source> <dest>:缺乏参数source"
+                        ))
+                    )
+                }
+            },
+            "check" => {
+                let output = bin::check::check();
+                match output {
+                    Ok(s) => s,
+                    Err(e) => {
+                        format!("{:?}", e)
+                    }
+                }
+            }
+            "shutdown" => {
+                format!("SHUTDOWN")
             }
             "" => "".to_string(),
             _ => {
