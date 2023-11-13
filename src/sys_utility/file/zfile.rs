@@ -87,8 +87,11 @@ impl ZFile {
     }
 
     pub fn cp_from(&mut self, source: &ZFile) -> Result<(), FileSystemOperationError> {
-        let length = source.raw.metadata().get_file_len();
+        
+        let length = source.raw.metadata().get_file_len()-ZFILE_SIZE as u32;
         let content = source.char_read(0, length);
+        // println!("cp_from{:?}",length);
+        // println!("{:?}",content); 
         self.char_write(0, length, content);
         Ok(())
     }

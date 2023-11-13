@@ -1,11 +1,11 @@
 use crate::{
-    file_shell::{file_table::file_table::FileTable, root_file::error::FileSystemOperationError},
+    file_shell::{file_table::file_table::FileTable, root_file::error::FileSystemOperationError, user::access_key::AccessKey},
     SUPER_BLOCK,
 };
 
 use super::helper::{ft_unwrap, get_ft};
 
-pub fn cat(file_path: &str) -> Result<String, FileSystemOperationError> {
+pub fn cat(file_path: &str,ackey:AccessKey) -> Result<String, FileSystemOperationError> {
     // let mut ft = FileTable::new();
     let temp = get_ft()?;
 
@@ -14,9 +14,9 @@ pub fn cat(file_path: &str) -> Result<String, FileSystemOperationError> {
     let mut ft = ft_unwrap(ft)?;
 
     let dir_ptr = ft.open(file_path)?;
-
+    drop(ft);
     let dir_result = dir_ptr.as_ref().read();
-
+    
     let dir_guard = match dir_result {
         Ok(x) => x,
         Err(_) => {
@@ -25,6 +25,6 @@ pub fn cat(file_path: &str) -> Result<String, FileSystemOperationError> {
             )));
         }
     };
-
+    dir_guard.dir_user_check(ackey)?;
     dir_guard.file_cat()
 }

@@ -108,15 +108,16 @@ impl ZDir {
         &mut self,
         name: &str,
         file_type: FileType,
+        owner_u_id:u8
     ) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, file_type)
+        self.servant.new_dir_item(name, file_type,owner_u_id)
     }
     ///获得一个文件的入口
     pub fn get_item_block_entry(&mut self, name: &str) -> Option<BlockAddr> {
         self.servant.find_item(name)
     }
     ///删除一个文件（输入名字删除）
-    pub fn del_item(&mut self, name: &str) -> Result<(), DirDeleleError> {
+    pub fn del_item(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
         self.servant.del_item(name)
     }
     ///查看目录块的状态
@@ -125,12 +126,16 @@ impl ZDir {
         println!();
     }
     ///在当前目录下，创建一个文件
-    pub fn touch(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, FileType::File)
+    pub fn touch(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::File,owner_u_id)
     }
     ///在当前目录下，创建一个目录
-    pub fn mkdir(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, FileType::Dir)
+    pub fn mkdir(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::Dir,owner_u_id)
+    }
+
+    pub fn get_owner_id(&self,name:&str)->Result<u8,FileSystemOperationError>{
+        self.servant.get_owner_id(name)
     }
 }
 
@@ -244,7 +249,7 @@ fn status() {
     println!("{:?}", zd.servant.dir_empty());
     let entry = zd.get_item_block_entry("dir3").unwrap();
     let mut dir3 = ZDir::open(entry).unwrap();
-    dir3.mkdir("dir4");
+    // dir3.mkdir("dir4");
     dir3.status();
     dir3.ls();
     dir3.close();

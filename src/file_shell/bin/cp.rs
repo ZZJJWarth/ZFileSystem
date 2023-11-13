@@ -1,4 +1,4 @@
-use crate::file_shell::root_file::error::FileSystemOperationError;
+use crate::file_shell::{root_file::error::FileSystemOperationError, user::access_key::AccessKey};
 
 use super::helper::{ft_unwrap, get_ft};
 ///source是源文件的路径
@@ -8,6 +8,7 @@ pub fn cp(
     source_path: &str,
     dest_path: &str,
     file_name: &str,
+    ackey:AccessKey,
 ) -> Result<(), FileSystemOperationError> {
     let ft = get_ft()?;
     let ft = ft.lock();
@@ -17,7 +18,11 @@ pub fn cp(
     let file = file_ptr.as_ref().read();
 
     match file {
-        Ok(s) => s.file_cp(dest_path, file_name),
+        Ok(s) => {
+            let u_id=ackey.u_id;
+            s.dir_user_check(ackey)?;
+            s.file_cp(dest_path, file_name,u_id)
+        },
         Err(_) => Err(FileSystemOperationError::LockError(format!(
             "cp:获取锁失败"
         ))),

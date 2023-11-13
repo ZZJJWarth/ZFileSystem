@@ -8,3 +8,4 @@ pub mod ls;
 pub mod mkdir;
 pub mod touch;
 pub mod write;
+pub mod rm;

@@ -13,4 +13,7 @@ pub enum FileSystemOperationError {
     BadStructureError(String),
     LackArgumentsError(String),
     FileCreateError(String),
+    DeleteError(String),
+    DirItemError(String),
+    PermissionError(String),
 }

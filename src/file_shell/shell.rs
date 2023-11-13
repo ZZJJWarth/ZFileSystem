@@ -6,19 +6,21 @@ use std::{
 
 use crate::file_shell::{
     bin,
-    root_file::{error::FileSystemOperationError, root_file::RawRootFile},
+    root_file::{error::FileSystemOperationError, root_file::RawRootFile}, user::access_key::AccessKey,
 };
 
 pub struct Shell {
     path: String,
     user: String,
+    u_id:u8,
 }
 
 impl Shell {
-    pub fn new(user: &str) -> Shell {
+    pub fn new(user: &str,u_id:u8) -> Shell {
         Shell {
             path: String::from("/"),
             user: user.to_string(),
+            u_id
         }
     }
 
@@ -35,7 +37,10 @@ impl Shell {
             None => return format!(""),
         };
         let content = match cm.as_str() {
-            "EXIT" => "".to_string(),
+            "EXIT" => {
+                bin::check::check();
+                "".to_string()
+            },
             "ls" => {
                 let output = bin::ls::ls(&self.path);
                 match output {
@@ -44,6 +49,7 @@ impl Shell {
                 }
             }
             "cd" => {
+                // let ackey=AccessKey::new(self.u_id,input,self.path.clone());
                 let after = bin::cd::cd(&self.path, &input);
                 match after {
                     Ok(s) => {
@@ -55,7 +61,7 @@ impl Shell {
             }
             "mkdir" => match command.get(1) {
                 Some(name) => {
-                    let output = bin::mkdir::mkdir(&self.path, name.as_str());
+                    let output = bin::mkdir::mkdir(&self.path, name.as_str(),self.u_id);
                     match output {
                         Ok(_) => String::new(),
                         Err(e) => format!("{:?}", e,),
@@ -67,7 +73,7 @@ impl Shell {
             },
             "touch" => match command.get(1) {
                 Some(name) => {
-                    let output = bin::touch::touch(&self.path, name.as_str());
+                    let output = bin::touch::touch(&self.path, name.as_str(),self.u_id);
                     match output {
                         Ok(_) => String::new(),
                         Err(e) => format!("{:?}", e,),
@@ -83,7 +89,8 @@ impl Shell {
                     Some(s) => {
                         path.push(s.clone());
                         let file_path = bin::cd::from_vec_to_path(path);
-                        let output = bin::cat::cat(file_path.as_str());
+                        let ackey=AccessKey::new(self.u_id,s.clone(),self.path.clone());
+                        let output = bin::cat::cat(file_path.as_str(),ackey);
                         match output {
                             Ok(s) => s,
                             Err(e) => format!("{:?}", e),
@@ -100,10 +107,11 @@ impl Shell {
                         let mut path = RawRootFile::parse_path(&self.path);
                         path.push(path1.clone());
                         let file_path = bin::cd::from_vec_to_path(path);
+                        let ackey=AccessKey::new(self.u_id,path1.clone(),self.path.clone());
                         match command.get(2) {
                             Some(content) => {
                                 // let content = command.get(2).unwrap();
-                                let output = bin::write::write(file_path.as_str(), content.clone());
+                                let output = bin::write::write(file_path.as_str(), content.clone(),ackey);
                                 match output {
                                     Ok(s) => {
                                         format!("{s} 字节被写入")
@@ -142,7 +150,8 @@ impl Shell {
                     let file_path = bin::cd::from_vec_to_path(path);
                     match command.get(2) {
                         Some(dname) => {
-                            let output = bin::cp::cp(&file_path, &self.path, &dname);
+                            let ackey=AccessKey::new(self.u_id, name.clone(), self.path.clone());
+                            let output = bin::cp::cp(&file_path, &self.path, &dname,ackey);
                             match output {
                                 Ok(_) => {
                                     format!("")
@@ -182,6 +191,19 @@ impl Shell {
             }
             "shutdown" => {
                 format!("SHUTDOWN")
+            }
+            "rm"=>{
+                match command.get(1){
+                    Some(name)=>{
+                        match bin::rm::rm(&self.path,name){
+                            Ok(_)=>{format!("")},
+                            Err(e)=>{format!("{:?}",e)}
+                        }
+                    },
+                    None=>{
+                        format!("rm <File>:缺乏参数File")
+                    }
+                }
             }
             "" => "".to_string(),
             _ => {

@@ -6,11 +6,25 @@ use std::{
     time::Duration,
 };
 
-use super::shell::{self, Shell};
+use super::{shell::{self, Shell}, user::UserManager};
+
+
 
 pub fn handle_shell_command(mut stream: TcpStream) {
+    let user_manager = UserManager::new();
+    
     let name = get_user_name(&mut stream);
-    let mut shell = Shell::new(name.as_str());
+    let u_id=match user_manager.find_user(&name){
+        Some(u_id)=>u_id,
+        None=>{
+            let answer=format!("{name} is not in the user list, please contact with manager:@SCUT Zeng Jun ");
+            println!("Illegal user:{name} is trying to access file system");
+            stream.write_all(answer.as_bytes());
+            stream.flush().unwrap();
+            return;
+        }
+    };
+    let mut shell = Shell::new(name.as_str(),u_id);
 
     loop {
         {

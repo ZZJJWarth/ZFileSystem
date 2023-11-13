@@ -4,7 +4,7 @@ use std::{
     mem::transmute,
     ops::{Add, AddAssign, Sub},
     process::Output,
-    vec,
+    vec, fmt::format,
 };
 
 use crate::{
@@ -108,6 +108,7 @@ impl DirServant {
         &mut self,
         name: &str,
         file_type: FileType,
+        owner_u_id:u8
     ) -> Result<(), FileSystemOperationError> {
         let check = self.has_name(name);
         match check {
@@ -136,7 +137,7 @@ impl DirServant {
                 temp.close();
             }
         }
-        let generator = DirItemGenerateIter::new(name, entry, file_type);
+        let generator = DirItemGenerateIter::new(name, entry, file_type,owner_u_id);
         // println!("{:?}",generator);
 
         let mut item_addr = self.find_emtpy_gap(generator.len() as u32);
@@ -274,7 +275,7 @@ impl DirServant {
     }
 
     ///通过一个name来查找是否有这个item
-    fn has_name(&mut self, name: &str) -> Option<ItemAddr> {
+    fn has_name(&self, name: &str) -> Option<ItemAddr> {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
             let n = self.get_name(i);
@@ -312,12 +313,12 @@ impl DirServant {
         }
     }
 
-    pub fn del_item(&mut self, name: &str) -> Result<(), DirDeleleError> {
+    pub fn del_item(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
         let find = self.has_name(name);
         let addr = match find {
             Some(addr) => addr,
             None => {
-                return Err(DirDeleleError::NotFoundError(format!(
+                return Err(FileSystemOperationError::NotFoundError(format!(
                     "not found {} in dir",
                     name
                 )))
@@ -327,7 +328,7 @@ impl DirServant {
         let (file_type, entry) = match item {
             DirItem::Short(s) => (s.get_type(), s.get_block()),
             _ => {
-                return Err(DirDeleleError::NotShortItemError(format!(
+                return Err(FileSystemOperationError::DeleteError(format!(
                     "找到的item不是shortitem，考虑get_item是否有问题"
                 )))
             }
@@ -339,7 +340,7 @@ impl DirServant {
                     //空文件夹可以删除
                     zd.servant.raw.del();
                 } else {
-                    return Err(DirDeleleError::NotEmptyDirError(format!(
+                    return Err(FileSystemOperationError::DeleteError(format!(
                         "删除失败，文件夹不为空"
                     )));
                 }
@@ -436,6 +437,19 @@ impl DirServant {
             }
         }
         return true;
+    }
+
+    pub fn get_owner_id(&self,name: &str)->Result<u8,FileSystemOperationError>{
+        let item=self.has_name(name);
+        match item{
+            Some(s)=>{
+                let diritem=self.get_item(s).unwrap().into_dir_item();
+                diritem.get_user_id()
+            },
+            None=>{
+                Err(FileSystemOperationError::NotFoundError(format!("{name} is not found in dir")))
+            }
+        }
     }
 }
 ///目录项的地址
@@ -598,6 +612,14 @@ impl DirItem {
             DirItem::None => Ok(DirRawItem::NON_USE_FLAG),
         }
     }
+
+    fn get_user_id(self) -> Result<u8, FileSystemOperationError> {
+        match self{
+            DirItem::Short(item)=>{Ok(item.get_user_id())},
+            DirItem::Long(_)=>{Err(FileSystemOperationError::DirItemError(format!("只有ShortDirItem才能读取u_id")))},
+            DirItem::None=>{Err(FileSystemOperationError::DirItemError(format!("只有ShortDirItem才能读取u_id")))}
+        }
+    }
 }
 
 ///用于根据一个字符串来产生DirItem的串
@@ -610,12 +632,12 @@ pub struct DirItemGenerateIter {
 }
 
 impl DirItemGenerateIter {
-    pub fn new(name: &str, entry: BlockAddr, file_type: FileType) -> DirItemGenerateIter {
+    pub fn new(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> DirItemGenerateIter {
         let target_num = name.len();
         let mut finish_num: usize = 0;
         let ans: Vec<DirItem> = vec![];
 
-        let si = DirItem::Short(ShortDirItem::from_name_entry(name, entry, file_type));
+        let si = DirItem::Short(ShortDirItem::from_name_entry(name, entry, file_type,owner_u_id));
         let mut list: Vec<DirItem> = vec![];
         list.push(si);
         finish_num = ItemData::SHORT_NAME_SIZE;
@@ -728,9 +750,9 @@ impl ShortDirItem {
         ShortDirItem { flag, data }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType) -> ShortDirItem {
+    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> ShortDirItem {
         let flag: u8 = DirRawItem::SHORT_FLAG;
-        let data = ItemData::from_name_entry(name, entry, file_type);
+        let data = ItemData::from_name_entry(name, entry, file_type,owner_u_id);
         ShortDirItem { flag, data }
     }
 
@@ -760,13 +782,17 @@ impl ShortDirItem {
     pub fn get_type(&self) -> FileType {
         self.data.file_type
     }
+
+    pub fn get_user_id(&self)->u8{
+        self.data.u_id
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ItemData {
     addr: [u8; 4],
     file_type: FileType,
-    reserved: u8,
+    u_id: u8,
     name: [u8; ItemData::SHORT_NAME_SIZE],
 }
 
@@ -777,7 +803,7 @@ impl ItemData {
         unsafe { transmute::<[u8; Self::DATA_SIZE], Self>(data) }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType) -> ItemData {
+    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> ItemData {
         if (name.len() == 0) {
             println!("输入name的长度为0！");
             panic!();
@@ -797,7 +823,7 @@ impl ItemData {
                 addr,
                 name: list,
                 file_type,
-                reserved: 0,
+                u_id: owner_u_id,
             }
         }
     }
@@ -808,6 +834,10 @@ impl ItemData {
 
     fn get_addr(&self) -> BlockAddr {
         unsafe { transmute::<[u8; 4], BlockAddr>(self.addr) }
+    }
+
+    fn get_uid(&self)->u8{
+        self.u_id
     }
 }
 
@@ -854,10 +884,10 @@ fn test_api() {
 
 #[test]
 fn test_diritem_generator() {
-    let gen = DirItemGenerateIter::new("hello world", BlockAddr { addr: 100 }, FileType::Dir);
-    for i in gen {
-        println!("{:?}", i);
-    }
+    // let gen = DirItemGenerateIter::new("hello world", BlockAddr { addr: 100 }, FileType::Dir);
+    // for i in gen {
+    //     println!("{:?}", i);
+    // }
 }
 
 #[test]

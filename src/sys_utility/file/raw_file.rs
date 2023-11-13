@@ -225,6 +225,7 @@ impl RawFile {
 
         let mut bit_map = unwrap_bitmap(&bm)?;
         bit_map.set_empty_block(addr);
+        drop(bit_map);
         self.close();
         Ok(())
     }
