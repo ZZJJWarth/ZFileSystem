@@ -6,12 +6,12 @@ use super::super::{
     bitmap::bitmap_servant::BitmapServant,
     config::config::{END_NUM, FILE_PATH, NON_OCCUPY_NUM},
 };
-
+///位图，提供空闲块管理和文件链表实现的基本服务
 #[derive(Debug)]
 pub struct BlockBitmap {
-    servant: BitmapServant,
-    block_num: u32,
-    reserved_block_num: u32,
+    servant: BitmapServant,  //负责底层交互的仆人
+    block_num: u32,          //文件的最大块数，用于确定位图表的大小
+    reserved_block_num: u32, //预留块的块数
 }
 
 impl BlockBitmap {
@@ -46,17 +46,17 @@ impl BlockBitmap {
             }
         }
     }
-
+    ///给定一个块地址，然后将value写入到这个块的表示位中
     pub fn set_value(&mut self, block: BlockAddr, value: BlockAddr) {
         self.servant.set_value(block, value);
     }
-
+    ///获得一个文件的块范围
     fn get_blockrange_of_file(&self) -> BlockRange {
         let start = BlockAddr::new(0);
         let end = self.servant.file_max_block();
         BlockRange::new(start, end)
     }
-
+    ///给定一个块地址，判断一个块是否为空闲块
     pub fn check_block_empty(&mut self, block: BlockAddr) -> bool {
         self.servant.check_block_empty(block)
     }
@@ -71,7 +71,7 @@ impl BlockBitmap {
         }
         self.servant.read_a_block(block)
     }
-
+    ///给定给一个文件的入口地址，找到这个文件块链表的最后一个块
     pub fn find_final_block(&mut self, ba: BlockAddr) -> Result<BlockAddr, ()> {
         let mut ba = ba;
         let mut nba = self.get_content(ba);
@@ -93,7 +93,7 @@ impl BlockBitmap {
             Ok(ba)
         }
     }
-
+    ///给定一个文件的块地址，裁剪掉这个文件最后的一个块
     pub fn reduce_a_block(&mut self, block: BlockAddr) {
         if (block == NON_OCCUPY_NUM) {
             panic!("减少空块函数需要一个根块，但是接收到了空块");
@@ -112,14 +112,14 @@ impl BlockBitmap {
         self.set_empty_block(next);
         self.set_value(node, END_NUM);
     }
-
+    ///给定一个文件的块地址，给这个文件增加一个块
     pub fn add_block(&mut self, block: BlockAddr) -> BlockAddr {
         let b = self.get_free_block().unwrap();
 
         self.set_value(block, b);
         b
     }
-
+    ///测试用函数
     pub fn test_block(&mut self, block: BlockAddr) {
         let mut count = 10;
         let mut block = block;
@@ -131,6 +131,7 @@ impl BlockBitmap {
     }
 }
 
+//下面的函数均为测试函数
 #[cfg(test)]
 // #[test]
 fn test1() {

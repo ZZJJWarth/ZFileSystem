@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use file_shell::thread_function::handle_shell_command;
 use file_shell::thread_pool::ThreadPool;
 use file_shell::user::UserManager;
+use sys_utility::config::config::FILE_PATH;
 use sys_utility::super_block;
 use sys_utility::super_block::super_block::SuperBlock;
 
@@ -18,8 +19,7 @@ mod test;
 static mut SUPER_BLOCK: Option<Arc<Mutex<SuperBlock>>> = None;
 
 fn main() -> std::io::Result<()> {
-    
-    match SuperBlock::init_main("../test3") {
+    match SuperBlock::init_main(FILE_PATH) {
         Ok(_) => {
             println!("init main success");
         }
@@ -44,7 +44,7 @@ fn main() -> std::io::Result<()> {
 
         // println!("{}",request_line);
         let note = String::from("input your user name:\n");
-        
+
         stream.write_all(note.as_bytes()).unwrap();
         pool.execute(|| handle_shell_command(stream));
     }

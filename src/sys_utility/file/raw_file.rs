@@ -124,6 +124,10 @@ impl RawFile {
         v
     }
 
+    pub fn simple_get_len(block:BlockAddr)->Result<u32,FileSystemOperationError>{
+        Ok(Self::open(block)?.metadata.get_file_len())
+    }
+
     pub fn open(block: BlockAddr) -> Result<RawFile, FileSystemOperationError> {
         // let mut bit_map = BlockBitmap::new(BlockAddr { addr: 1 }, 256, 2); //测试用
         let mut bm = get_bitmap()?;
@@ -131,10 +135,12 @@ impl RawFile {
         let mut bit_map = unwrap_bitmap(&bm)?;
         if bit_map.get_content(block) == NON_OCCUPY_NUM {
             // println!("文件块为空");
+            drop(bit_map);
             return Err(FileSystemOperationError::BadStructureError(format!(
                 "文件块为空"
             )));
         } else {
+            drop(bit_map);
             let offset = block.into_addr().get_raw_num();
             let f = File::open(FILE_PATH).unwrap();
             let mut br = BufReader::with_capacity(ZFILE_SIZE, f);
@@ -229,6 +235,8 @@ impl RawFile {
         self.close();
         Ok(())
     }
+
+    
 }
 #[cfg(test)]
 // #[test]

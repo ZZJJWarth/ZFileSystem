@@ -6,7 +6,8 @@ use crate::file_shell::{
     root_file::{
         error::FileSystemOperationError,
         root_file::{RawRootFile, VFile},
-    }, user::access_key::AccessKey,
+    },
+    user::access_key::AccessKey,
 };
 
 use super::helper::{ft_unwrap, get_ft};

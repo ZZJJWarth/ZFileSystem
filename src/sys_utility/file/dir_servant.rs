@@ -1,10 +1,11 @@
 use std::{
     collections::btree_map::Keys,
+    fmt::format,
     fs::File,
     mem::transmute,
     ops::{Add, AddAssign, Sub},
     process::Output,
-    vec, fmt::format,
+    vec,
 };
 
 use crate::{
@@ -24,16 +25,22 @@ use super::{
 use super::raw_f::{FileType, RawF};
 
 ///帮助zdir创建、删除、查找、遍历目录项
+///是zdir的仆人，向zdir提供目录项的管理接口
 #[derive(Debug)]
 pub struct DirServant {
-    raw: RawFile,
-    num: u32,
+    raw: RawFile, //servant掌管着zdir的raw文件，负责向文件中写入或删除目录项
+    num: u32,     //最大目录项数目，初始为31
 }
 
 impl DirServant {
+    ///表示一个块中只有32个目录项，即如果dir需要拓展一个新块，那么会增加32个目录项
     const DIR_BLOCK_NUM: usize = 32;
+    ///表示初始化块只有31个目录项，因为dir有头部，所以会比新块的目录项要少一个
     const DIR_INIT_BLOCK_NUM: usize = 31;
+    ///表示文件头部预留的空间，一个块是1024字节，一个目录项长度是32字节，那么一个块最多可以有32个目录项
+    ///dir第一个块的第一个32字节保留作为文件头部，为了存储的工整，我们保留32字节（原本只需保留16字节）
     const HEAD_RESERVE_SIZE: usize = 32;
+    ///初始化dirServant，主要的功能是对dir第一个块的第一个32字节进行保留
     pub fn init(&mut self) {
         let zeros = [0; Self::DIR_INIT_BLOCK_NUM * DirRawItem::ITEM_SIZE].to_vec();
         self.raw.add_write(&zeros, 32);
@@ -44,26 +51,26 @@ impl DirServant {
         );
         self.num = Self::DIR_INIT_BLOCK_NUM as u32;
     }
-
+    ///扩展dir的空间，如果使用目录项超过当前块承载能力，那么系统会调用该函数对dir进行扩展
     pub fn extent_block_size(&mut self) {
         let zeros = [0; Self::DIR_BLOCK_NUM * DirRawItem::ITEM_SIZE].to_vec();
         self.raw
             .add_write(&zeros, (Self::DIR_BLOCK_NUM * DirRawItem::ITEM_SIZE) as u32);
         self.num = self.num + Self::DIR_BLOCK_NUM as u32;
     }
-
+    ///输入raw文件和num创建新的dirServant
     pub fn new(raw: RawFile, num: u32) -> Self {
         Self { raw, num }
     }
-
+    ///获取自己的文件目录
     pub fn get_block_entry(&self) -> BlockAddr {
         self.raw.get_block_entry()
     }
-
+    ///获得最大目录项数目
     pub fn get_item_num(&self) -> u32 {
         self.num
     }
-
+    ///获取自己掌管的raw文件
     pub fn file(&mut self) -> &mut RawFile {
         &mut self.raw
     }
@@ -108,7 +115,7 @@ impl DirServant {
         &mut self,
         name: &str,
         file_type: FileType,
-        owner_u_id:u8
+        owner_u_id: u8,
     ) -> Result<(), FileSystemOperationError> {
         let check = self.has_name(name);
         match check {
@@ -137,7 +144,7 @@ impl DirServant {
                 temp.close();
             }
         }
-        let generator = DirItemGenerateIter::new(name, entry, file_type,owner_u_id);
+        let generator = DirItemGenerateIter::new(name, entry, file_type, owner_u_id);
         // println!("{:?}",generator);
 
         let mut item_addr = self.find_emtpy_gap(generator.len() as u32);
@@ -153,7 +160,7 @@ impl DirServant {
         }
         Ok(())
     }
-
+    ///简单的ls功能，可以输出当前目录下所有的文件和目录
     pub fn command_ls(&self) -> String {
         let mut ans: Vec<String> = vec![];
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
@@ -190,7 +197,7 @@ impl DirServant {
         let a = list.iter().map(|x| *x as char).collect::<Vec<_>>();
         a.iter().collect()
     }
-
+    ///输入一个Itemaddr，获取一个Item的名字的字节数组
     fn get_name_raw(&self, addr: ItemAddr) -> Vec<u8> {
         let mut current = self.get_item(addr).unwrap().into_dir_item();
         let mut addr = addr;
@@ -199,10 +206,10 @@ impl DirServant {
         let mut short_flag = false;
 
         loop {
-            count += 1;
-            if count > 100 {
-                panic!("死循环了可能");
-            }
+            // count += 1;
+            // if count > 1000 {
+            //     panic!("死循环了可能");
+            // }
 
             match self.get_flag(addr) {
                 DirRawItem::LONG_END_FLAG => {
@@ -298,7 +305,7 @@ impl DirServant {
             }
         }
     }
-
+    ///给定一个个ItemAddr，获得对于文件的入口
     fn get_item_block_entry(&mut self, addr: ItemAddr) -> BlockAddr {
         let item = self.get_item(addr).unwrap().into_dir_item();
         match item {
@@ -312,7 +319,7 @@ impl DirServant {
             }
         }
     }
-
+    ///给定文件名，删除一个文件
     pub fn del_item(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
         let find = self.has_name(name);
         let addr = match find {
@@ -346,14 +353,14 @@ impl DirServant {
                 }
             } //TODO：这里还有dir的问题要解决！
             FileType::File => {
-                let mut f = ZFile::open(entry);
+                let mut f = ZFile::open(entry)?;
                 f.del();
             }
         }
         self.set_empty_item(addr);
         Ok(())
     }
-
+    ///使某个文件的目录项变为空目录项
     fn set_empty_item(&mut self, addr: ItemAddr) {
         // let mut current=self.get_item(addr).unwrap().into_dir_item();
         let mut addr = addr;
@@ -395,7 +402,7 @@ impl DirServant {
             }
         }
     }
-
+    ///可以查看本dir的目录项情况
     pub fn item_status(&mut self) {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         let mut count = 0;
@@ -422,7 +429,7 @@ impl DirServant {
             }
         }
     }
-
+    ///判断当前dir是否存在文件或目录
     pub fn dir_empty(&mut self) -> bool {
         let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
         for i in range.iter() {
@@ -438,18 +445,81 @@ impl DirServant {
         }
         return true;
     }
-
-    pub fn get_owner_id(&self,name: &str)->Result<u8,FileSystemOperationError>{
-        let item=self.has_name(name);
-        match item{
-            Some(s)=>{
-                let diritem=self.get_item(s).unwrap().into_dir_item();
+    ///给定文件名，获得该文件的u_id
+    pub fn get_owner_id(&self, name: &str) -> Result<u8, FileSystemOperationError> {
+        let item = self.has_name(name);
+        match item {
+            Some(s) => {
+                let diritem = self.get_item(s).unwrap().into_dir_item();
                 diritem.get_user_id()
-            },
-            None=>{
-                Err(FileSystemOperationError::NotFoundError(format!("{name} is not found in dir")))
+            }
+            None => Err(FileSystemOperationError::NotFoundError(format!(
+                "{name} is not found in dir"
+            ))),
+        }
+    }
+    ///host copy功能，可以对外部的文件进行复制并生成文件系统内部的文件
+    pub fn host_cp(
+        &mut self,
+        source_path: &str,
+        file_name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
+        use std::io::Read;
+        let source_file_result = std::fs::File::options().read(true).open(source_path);
+        let mut source_file = match source_file_result {
+            Ok(f) => f,
+            Err(_) => {
+                return Err(FileSystemOperationError::HostError(format!(
+                    "{source_path} cannot open"
+                )))
+            }
+        };
+        let mut buf: String = String::new();
+        match source_file.read_to_string(&mut buf) {
+            Ok(_) => {}
+            Err(_) => {
+                return Err(FileSystemOperationError::HostError(format!(
+                    "{source_path} cannot read"
+                )))
             }
         }
+        self.new_dir_item(file_name, FileType::File, owner_u_id);
+        let iaddr = match self.has_name(file_name) {
+            Some(s) => s,
+            None => {
+                return Err(FileSystemOperationError::HostError(format!(
+                    "创建复制文件失败"
+                )));
+            }
+        };
+        let entry = self.get_item_block_entry(iaddr);
+        let mut zf = ZFile::open(entry)?;
+        zf.write(buf)?;
+        Ok(())
+    }
+
+    pub fn dir_ls_l(&self)->Result<String,FileSystemOperationError>{
+        let mut ans: Vec<String> = vec![];
+        let range = ItemAddrRange::new(ItemAddr::new(0), ItemAddr::new(self.num));
+        let head=String::from("UID\tFileType\tLength\tBlockAddr\tName\t\n");
+        ans.push(head);
+        for i in range.iter() {
+            // println!("{:?}",i);
+            let temp = self.get_item(i).unwrap().into_dir_item();
+            // println!("{:?}",temp);
+            match temp {
+                DirItem::Short(item) => {
+                    let prefix=item.get_detail_info()?;
+                    let name=self.get_name(i);
+                    ans.push(format!("{}\t{}\t\n",prefix,name));
+                }
+                _ => {
+                    continue;
+                }
+            }
+        }
+        Ok(ans.concat())
     }
 }
 ///目录项的地址
@@ -459,23 +529,24 @@ pub struct ItemAddr {
 }
 
 impl ItemAddr {
+    ///给定一个32位无符号整数，生成一个目录项地址
     fn new(addr: u32) -> Self {
         ItemAddr { addr }
     }
-
+    ///由目录项地址转换为相对于dir起始地址的相对地址
     fn get_offset(&self) -> u32 {
         self.addr * DirRawItem::ITEM_SIZE as u32 + ZDirPack::PACK_SIZE as u32 /*+ DirServant::HEAD_RESERVE_SIZE as u32*/
     }
-
+    ///得到ItemAddr的数值
     fn get_addr(&self) -> u32 {
         self.addr
     }
-
+    ///地址加一
     pub fn step(&mut self) {
         self.addr += 1;
     }
 }
-
+///重载运算符加号，使得ItemAddr可以直接和整数相加
 impl Add<u32> for ItemAddr {
     type Output = ItemAddr;
     fn add(self, rhs: u32) -> Self::Output {
@@ -484,7 +555,7 @@ impl Add<u32> for ItemAddr {
         }
     }
 }
-
+///重载运算符减号，使得ItemAddr可以直接和整数相减
 impl Sub<u32> for ItemAddr {
     type Output = ItemAddr;
     fn sub(self, rhs: u32) -> Self::Output {
@@ -494,21 +565,24 @@ impl Sub<u32> for ItemAddr {
     }
 }
 
+///表示ItemAddr的范围
 pub struct ItemAddrRange {
     start: ItemAddr,
     end: ItemAddr,
 }
 
 impl ItemAddrRange {
+    ///给定一个起始地址和终止地址
     pub fn new(start: ItemAddr, end: ItemAddr) -> ItemAddrRange {
         ItemAddrRange { start, end }
     }
-
+    ///获取ItemAddr范围的迭代器
     pub fn iter(&self) -> ItemAddrRangeIter {
         ItemAddrRangeIter::new(self.start, self.end)
     }
 }
 
+///ItemAddr范围的迭代器
 #[derive(Debug)]
 pub struct ItemAddrRangeIter {
     current: ItemAddr,
@@ -516,6 +590,7 @@ pub struct ItemAddrRangeIter {
 }
 
 impl ItemAddrRangeIter {
+    ///生成ItemAddr范围的迭代器
     fn new(current: ItemAddr, end: ItemAddr) -> ItemAddrRangeIter {
         ItemAddrRangeIter { current, end }
     }
@@ -523,6 +598,7 @@ impl ItemAddrRangeIter {
 
 impl Iterator for ItemAddrRangeIter {
     type Item = ItemAddr;
+    ///实现ItemAddr迭代器的功能
     fn next(&mut self) -> Option<Self::Item> {
         if (self.current != self.end) {
             let temp = self.current;
@@ -533,13 +609,16 @@ impl Iterator for ItemAddrRangeIter {
         }
     }
 }
+
+///由于Item也分为长短，为了存储方便，设立一个rawItem用于和硬盘交互
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct DirRawItem {
-    flag: u8,
-    reserved: [u8; 31],
+    flag: u8,           //item的标志
+    reserved: [u8; 31], //item的数据
 }
 
 impl From<ShortDirItem> for DirRawItem {
+    ///从短目录项转换为raw目录项的方法
     fn from(value: ShortDirItem) -> Self {
         let flag = value.get_flag();
         let reserved = unsafe { transmute::<ItemData, [u8; 31]>(value.data) };
@@ -548,6 +627,7 @@ impl From<ShortDirItem> for DirRawItem {
 }
 
 impl From<LongDirItem> for DirRawItem {
+    ///从长目录项转换为raw目录项的方法
     fn from(value: LongDirItem) -> Self {
         let flag = value.flag;
         let reserved = value.data;
@@ -556,13 +636,18 @@ impl From<LongDirItem> for DirRawItem {
 }
 
 impl DirRawItem {
+    ///目录项的长度
     const ITEM_SIZE: usize = 32;
+    ///短目录项的标志
     const SHORT_FLAG: u8 = 0b0000_0001;
+    ///长目录项的标志
     const LONG_END_FLAG: u8 = 0b1111_1111;
+    ///未占用的标志
     const NON_USE_FLAG: u8 = 0b0000_0000;
+    ///输入一个DirItem，生成一个DirRawItem
     pub fn new(di: DirItem) -> DirRawItem {
         match di {
-            //todo: 这里有一个很严重的问题，单纯的transmute可能会导致严重的后果
+            //todo: 这里有一个很严重的问题，单纯的transmute可能会导致严重的后果 Done
             DirItem::Long(item) => Self::from(item),
             DirItem::Short(item) => Self::from(item),
             DirItem::None => {
@@ -571,7 +656,7 @@ impl DirRawItem {
             }
         }
     }
-
+    ///将DirRawItem转换为DirItem
     pub fn into_dir_item(self) -> DirItem {
         match self.flag {
             Self::SHORT_FLAG => DirItem::Short(ShortDirItem::from(self)),
@@ -579,24 +664,26 @@ impl DirRawItem {
             _ => DirItem::Long(LongDirItem::from(self)),
         }
     }
-
+    ///将DirRawItem转换为字节数组，方便写入
     pub fn into_u8(self) -> [u8; Self::ITEM_SIZE] {
         unsafe { transmute::<DirRawItem, [u8; Self::ITEM_SIZE]>(self) }
     }
-
+    ///将字节数组转换为DirRawItem，读出时使用
     pub fn from_u8(data: [u8; Self::ITEM_SIZE]) -> DirRawItem {
         unsafe { transmute::<[u8; Self::ITEM_SIZE], DirRawItem>(data) }
     }
 }
 
+///DirItem的枚举
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DirItem {
-    Long(LongDirItem),
-    Short(ShortDirItem),
-    None,
+    Long(LongDirItem),  //长目录项
+    Short(ShortDirItem),//短目录项
+    None,               //空
 }
 
 impl DirItem {
+    ///获取目录项的文件名区
     fn get_name(self) -> Result<Vec<u8>, ()> {
         match self {
             DirItem::Long(item) => Ok(item.get_name_zone()),
@@ -604,7 +691,7 @@ impl DirItem {
             DirItem::None => Err(()),
         }
     }
-
+    ///获取目录项的标志
     fn get_flag(self) -> Result<u8, ()> {
         match self {
             DirItem::Long(item) => Ok(item.get_flag()),
@@ -612,32 +699,44 @@ impl DirItem {
             DirItem::None => Ok(DirRawItem::NON_USE_FLAG),
         }
     }
-
+    ///获取短目录项的u_id，若不是短目录项则返回错误
     fn get_user_id(self) -> Result<u8, FileSystemOperationError> {
-        match self{
-            DirItem::Short(item)=>{Ok(item.get_user_id())},
-            DirItem::Long(_)=>{Err(FileSystemOperationError::DirItemError(format!("只有ShortDirItem才能读取u_id")))},
-            DirItem::None=>{Err(FileSystemOperationError::DirItemError(format!("只有ShortDirItem才能读取u_id")))}
+        match self {
+            DirItem::Short(item) => Ok(item.get_user_id()),
+            DirItem::Long(_) => Err(FileSystemOperationError::DirItemError(format!(
+                "只有ShortDirItem才能读取u_id"
+            ))),
+            DirItem::None => Err(FileSystemOperationError::DirItemError(format!(
+                "只有ShortDirItem才能读取u_id"
+            ))),
         }
     }
 }
 
 ///用于根据一个字符串来产生DirItem的串
 /// 它的用法是：输入一个字符串和入口，然后生成一个待写入的迭代器，迭代器每迭代一次，都会吐出一个你要写入的项
+/// 这里运用了工厂模式
 #[derive(Debug)]
 pub struct DirItemGenerateIter {
-    list: Vec<DirItem>,
+    list: Vec<DirItem>,     //
     count: usize,
     length: usize,
 }
 
 impl DirItemGenerateIter {
-    pub fn new(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> DirItemGenerateIter {
+    pub fn new(
+        name: &str,
+        entry: BlockAddr,
+        file_type: FileType,
+        owner_u_id: u8,
+    ) -> DirItemGenerateIter {
         let target_num = name.len();
         let mut finish_num: usize = 0;
         let ans: Vec<DirItem> = vec![];
 
-        let si = DirItem::Short(ShortDirItem::from_name_entry(name, entry, file_type,owner_u_id));
+        let si = DirItem::Short(ShortDirItem::from_name_entry(
+            name, entry, file_type, owner_u_id,
+        ));
         let mut list: Vec<DirItem> = vec![];
         list.push(si);
         finish_num = ItemData::SHORT_NAME_SIZE;
@@ -750,9 +849,14 @@ impl ShortDirItem {
         ShortDirItem { flag, data }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> ShortDirItem {
+    pub fn from_name_entry(
+        name: &str,
+        entry: BlockAddr,
+        file_type: FileType,
+        owner_u_id: u8,
+    ) -> ShortDirItem {
         let flag: u8 = DirRawItem::SHORT_FLAG;
-        let data = ItemData::from_name_entry(name, entry, file_type,owner_u_id);
+        let data = ItemData::from_name_entry(name, entry, file_type, owner_u_id);
         ShortDirItem { flag, data }
     }
 
@@ -783,17 +887,31 @@ impl ShortDirItem {
         self.data.file_type
     }
 
-    pub fn get_user_id(&self)->u8{
+    pub fn get_user_id(&self) -> u8 {
         self.data.u_id
     }
-}
 
+    pub fn get_detail_info(&self)->Result<String,FileSystemOperationError>{
+        let u_id=self.data.u_id;
+        let file_type=self.data.file_type;
+        let entry=unsafe {
+            transmute::<[u8;4],u32>(self.data.addr)
+        };
+        let length=RawFile::simple_get_len(BlockAddr::new(entry))?;
+        match file_type{
+            FileType::Dir=>{Ok(format!("{}\tDir\t\t{}\t{}\t",u_id,length,entry))}
+            FileType::File=>{Ok(format!("{}\tFile\t\t{}\t{}\t",u_id,length,entry))}
+        }
+        
+    }
+}
+///用于存放短目录项数据的结构
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ItemData {
-    addr: [u8; 4],
-    file_type: FileType,
-    u_id: u8,
-    name: [u8; ItemData::SHORT_NAME_SIZE],
+    addr: [u8; 4],                          //表示文件的地址
+    file_type: FileType,                    //文件类型
+    u_id: u8,                               //拥有者id
+    name: [u8; ItemData::SHORT_NAME_SIZE],  //文件名区
 }
 
 impl ItemData {
@@ -803,7 +921,12 @@ impl ItemData {
         unsafe { transmute::<[u8; Self::DATA_SIZE], Self>(data) }
     }
 
-    pub fn from_name_entry(name: &str, entry: BlockAddr, file_type: FileType,owner_u_id:u8) -> ItemData {
+    pub fn from_name_entry(
+        name: &str,
+        entry: BlockAddr,
+        file_type: FileType,
+        owner_u_id: u8,
+    ) -> ItemData {
         if (name.len() == 0) {
             println!("输入name的长度为0！");
             panic!();
@@ -836,7 +959,7 @@ impl ItemData {
         unsafe { transmute::<[u8; 4], BlockAddr>(self.addr) }
     }
 
-    fn get_uid(&self)->u8{
+    fn get_uid(&self) -> u8 {
         self.u_id
     }
 }

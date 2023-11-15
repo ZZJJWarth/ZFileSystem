@@ -5,7 +5,11 @@ use crate::file_shell::{
 
 // use super::helper::get_ft_guard;
 
-pub fn touch(current_path: &str, file_name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+pub fn touch(
+    current_path: &str,
+    file_name: &str,
+    owner_u_id: u8,
+) -> Result<(), FileSystemOperationError> {
     let ft = get_ft()?;
     let ft = ft.lock();
     let mut ft = ft_unwrap(ft)?;
@@ -19,5 +23,5 @@ pub fn touch(current_path: &str, file_name: &str,owner_u_id:u8) -> Result<(), Fi
             )))
         }
     };
-    dir_guard.dir_touch(file_name,owner_u_id)
+    dir_guard.dir_touch(file_name, owner_u_id)
 }

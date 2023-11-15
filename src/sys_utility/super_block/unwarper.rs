@@ -5,6 +5,7 @@ use crate::{
     sys_utility::bitmap::block_bit_map::BlockBitmap, SUPER_BLOCK,
 };
 
+///获取全局位图的锁
 pub fn get_bitmap<'a>() -> Result<Option<Arc<Mutex<BlockBitmap>>>, FileSystemOperationError> {
     let a = unsafe {
         match (&SUPER_BLOCK) {
@@ -22,7 +23,7 @@ pub fn get_bitmap<'a>() -> Result<Option<Arc<Mutex<BlockBitmap>>>, FileSystemOpe
     let bitmap = guard.get_bitmap();
     Ok(bitmap)
 }
-
+///从全局位图的锁中获得全局位图的智能指针
 pub fn unwrap_bitmap<'a>(
     input: &'a Option<Arc<Mutex<BlockBitmap>>>,
 ) -> Result<

@@ -17,8 +17,8 @@ pub struct SuperPack {
     pub reserve_num: u32,         //保留给超级块的块数
     pub bitmap_num: u32,          //保留给bitmap的块数
     pub root_dir_addr: BlockAddr, //根目录的地址
-    pub magic_num: u64,
-    pub first_init: bool,
+    pub magic_num: u64,           //魔数
+    pub first_init: bool,         //是否已经初始化
 }
 
 impl SuperPack {

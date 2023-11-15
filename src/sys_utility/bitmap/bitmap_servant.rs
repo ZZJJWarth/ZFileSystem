@@ -8,6 +8,7 @@ use super::super::{
     config::config::{BLOCK_SIZE, NON_OCCUPY_NUM},
 };
 use super::block_bit_map::BlockBitmap;
+///位图仆人，给位图提供访问磁盘的服务
 #[derive(Debug)]
 pub struct BitmapServant {
     block_entry: BlockAddr,
@@ -16,6 +17,7 @@ pub struct BitmapServant {
 }
 
 impl BitmapServant {
+    ///输入位图的入口，位图仆人
     pub fn new(block_entry: BlockAddr) -> BitmapServant {
         BitmapServant {
             block_entry,
@@ -55,7 +57,7 @@ impl BitmapServant {
             false
         }
     }
-
+    ///在表中读一个块，得到下一个块的地址
     pub fn read_a_block(&mut self, block: BlockAddr) -> BlockAddr {
         let offset = BlockOffset::new(block) + self.block_entry;
         let read = self.f_reader.bitmap_read(offset);

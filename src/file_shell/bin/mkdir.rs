@@ -9,7 +9,11 @@ use super::helper::{ft_unwrap, get_ft};
 
 // use super::helper::get_ft_guard;
 
-pub fn mkdir(current_path: &str, dir_name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+pub fn mkdir(
+    current_path: &str,
+    dir_name: &str,
+    owner_u_id: u8,
+) -> Result<(), FileSystemOperationError> {
     // let mut ft=get_ft_guard()?;
     let ft = get_ft()?;
     let ft = ft.lock();
@@ -25,7 +29,7 @@ pub fn mkdir(current_path: &str, dir_name: &str,owner_u_id:u8) -> Result<(), Fil
             )));
         }
     };
-    dir_guard.dir_mkdir(dir_name,owner_u_id);
+    dir_guard.dir_mkdir(dir_name, owner_u_id);
     // let vdir=dir_guard.deref_mut();
 
     // let mut zdir=match vdir{

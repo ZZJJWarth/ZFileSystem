@@ -11,7 +11,7 @@ use crate::{
     sys_utility::{
         addr::addr::BlockAddr,
         bitmap::block_bit_map::BlockBitmap,
-        config::config::{BLOCK_SIZE, END_NUM},
+        config::config::{BLOCK_SIZE, END_NUM, FILE_PATH},
         file::zdir::ZDir,
     },
     SUPER_BLOCK,
@@ -30,10 +30,9 @@ pub struct SuperBlock {
     root_dir_addr: BlockAddr, //根目录的地址
     magic_num: u64,           //魔数
     first_init: bool,         //是否已经初始化
-    user_manager_entry:u32,    //用户管理器的地址
+    user_manager_entry: u32,  //用户管理器的地址
     bitmap: Option<Arc<Mutex<BlockBitmap>>>,
     file_table: Option<Arc<Mutex<FileTable>>>,
-    
 }
 
 impl SuperBlock {
@@ -57,7 +56,7 @@ impl SuperBlock {
             root_dir_addr,
             first_init: true,
             magic_num: Self::MAGIC_FLAG,
-            user_manager_entry:0,
+            user_manager_entry: 0,
             bitmap: None,
             file_table: None,
         })
@@ -136,7 +135,7 @@ impl SuperBlock {
             let mut temp = a.lock().unwrap();
 
             temp.first_init = false;
-            temp.write_super_block("../test3");
+            temp.write_super_block(FILE_PATH);
         }
         //处理死锁
     }
@@ -167,7 +166,7 @@ impl From<SuperPack> for SuperBlock {
             root_dir_addr: value.root_dir_addr,
             magic_num: value.magic_num,
             first_init: value.first_init,
-            user_manager_entry:0,
+            user_manager_entry: 0,
             bitmap: None,
             file_table: None,
         }
@@ -190,9 +189,9 @@ fn test_new() {
     let ft = ft.lock();
     let mut ft = ft_unwrap(ft).unwrap();
 
-    let a=ft.open("test").unwrap();
+    let a = ft.open("test").unwrap();
     drop(ft);
-    let b=a.write().unwrap();
+    let b = a.write().unwrap();
     // b.file_cp("/dir1", "hihi");
     let ft = get_ft().unwrap();
     let ft = ft.lock();

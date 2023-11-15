@@ -43,6 +43,25 @@ pub fn ls(path: &str) -> Result<String, FileSystemOperationError> {
     Ok(ans)
 }
 
+pub fn ls_l(path:&str)->Result<String,FileSystemOperationError>{
+    let ft = get_ft()?;
+    let ft = ft.lock();
+    let mut ft = ft_unwrap(ft)?;
+    let ls_dir = ft.open(path).unwrap();
+
+    let dir = ls_dir.as_ref().read();
+    let mut dir = match dir {
+        Ok(dir) => dir,
+        Err(_) => {
+            return Err(FileSystemOperationError::LockError(format!(
+                "在获取文件锁时出现错误"
+            )));
+        }
+    };
+
+    dir.dir_ls_l()
+}
+
 #[cfg(test)]
 #[test]
 fn test_ls() {

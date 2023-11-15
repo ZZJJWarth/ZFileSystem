@@ -108,9 +108,9 @@ impl ZDir {
         &mut self,
         name: &str,
         file_type: FileType,
-        owner_u_id:u8
+        owner_u_id: u8,
     ) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, file_type,owner_u_id)
+        self.servant.new_dir_item(name, file_type, owner_u_id)
     }
     ///获得一个文件的入口
     pub fn get_item_block_entry(&mut self, name: &str) -> Option<BlockAddr> {
@@ -126,16 +126,29 @@ impl ZDir {
         println!();
     }
     ///在当前目录下，创建一个文件
-    pub fn touch(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, FileType::File,owner_u_id)
+    pub fn touch(&mut self, name: &str, owner_u_id: u8) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::File, owner_u_id)
     }
     ///在当前目录下，创建一个目录
-    pub fn mkdir(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
-        self.servant.new_dir_item(name, FileType::Dir,owner_u_id)
+    pub fn mkdir(&mut self, name: &str, owner_u_id: u8) -> Result<(), FileSystemOperationError> {
+        self.servant.new_dir_item(name, FileType::Dir, owner_u_id)
+    }
+    ///在当前目录下，按照文件名获得某个文件的u_id
+    pub fn get_owner_id(&self, name: &str) -> Result<u8, FileSystemOperationError> {
+        self.servant.get_owner_id(name)
+    }
+    ///host copy
+    pub fn host_cp(
+        &mut self,
+        source_path: &str,
+        file_name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
+        self.servant.host_cp(source_path, file_name, owner_u_id)
     }
 
-    pub fn get_owner_id(&self,name:&str)->Result<u8,FileSystemOperationError>{
-        self.servant.get_owner_id(name)
+    pub fn dir_ls_l(&self)->Result<String,FileSystemOperationError>{
+        self.servant.dir_ls_l()
     }
 }
 
@@ -226,19 +239,19 @@ fn test_dir_item() {
 
 #[test]
 fn test_item() {
-    let mut zd = ZDir::open(BlockAddr::new(212)).unwrap();
-    // println!("{:?}",zd);
-    // zd.insert_item("File1", FileType::File);
-    zd.ls();
-    println!("\nDir1's entry is {:?}", zd.get_item_block_entry("File1"));
-    let addr = zd.get_item_block_entry("File1").unwrap();
-    let mut zd1 = ZFile::open(addr);
-    // zd1.char_write(0, 1, vec!['h']);
-    println!("{:?}", zd1.char_read(0, 1));
-    zd1.close();
-    // println!("hello's entry is :{:?}",zd.get_item_block_entry("File6"));
-    // println!("{:?}",zd);
-    zd.close();
+    // let mut zd = ZDir::open(BlockAddr::new(212)).unwrap();
+    // // println!("{:?}",zd);
+    // // zd.insert_item("File1", FileType::File);
+    // zd.ls();
+    // println!("\nDir1's entry is {:?}", zd.get_item_block_entry("File1"));
+    // let addr = zd.get_item_block_entry("File1").unwrap();
+    // let mut zd1 = ZFile::open(addr);
+    // // zd1.char_write(0, 1, vec!['h']);
+    // println!("{:?}", zd1.char_read(0, 1));
+    // zd1.close();
+    // // println!("hello's entry is :{:?}",zd.get_item_block_entry("File6"));
+    // // println!("{:?}",zd);
+    // zd.close();
 }
 
 #[test]

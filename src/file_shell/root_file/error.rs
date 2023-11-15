@@ -16,4 +16,5 @@ pub enum FileSystemOperationError {
     DeleteError(String),
     DirItemError(String),
     PermissionError(String),
+    HostError(String),
 }

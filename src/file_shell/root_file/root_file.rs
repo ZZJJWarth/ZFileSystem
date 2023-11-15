@@ -1,5 +1,11 @@
 use crate::{
-    file_shell::{bin::helper::{ft_unwrap, get_ft}, user::access_key::AccessKey},
+    file_shell::{
+        bin::{
+            helper::{ft_unwrap, get_ft},
+            touch::touch,
+        },
+        user::access_key::AccessKey,
+    },
     sys_utility::{
         addr::addr::BlockAddr,
         bitmap::block_bit_map::BlockBitmap,
@@ -28,21 +34,29 @@ pub enum VFile {
 }
 
 impl VFile {
-    pub fn dir_mkdir(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+    pub fn dir_mkdir(
+        &mut self,
+        name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
         match self {
             VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
                 "mkdir:这里需要一个目录，但是这里却是文件"
             ))),
-            VFile::ZDir(zdir) => zdir.mkdir(name,owner_u_id),
+            VFile::ZDir(zdir) => zdir.mkdir(name, owner_u_id),
         }
     }
 
-    pub fn dir_touch(&mut self, name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+    pub fn dir_touch(
+        &mut self,
+        name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
         match self {
             VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
                 "touch:这里需要一个目录，但是这里却是文件"
             ))),
-            VFile::ZDir(zdir) => zdir.touch(name,owner_u_id),
+            VFile::ZDir(zdir) => zdir.touch(name, owner_u_id),
         }
     }
 
@@ -66,7 +80,12 @@ impl VFile {
     }
 
     ///给定一个path(绝对路径)，和新文件的名字，把self复制到这个文件中
-    pub fn file_cp(&self, path: &str, file_name: &str,owner_u_id:u8) -> Result<(), FileSystemOperationError> {
+    pub fn file_cp(
+        &self,
+        path: &str,
+        file_name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
         match self {
             VFile::ZDir(_) => {
                 return Err(FileSystemOperationError::NotDirError(format!(
@@ -88,8 +107,8 @@ impl VFile {
                         )));
                     }
                 };
-            
-                dir.dir_touch(file_name,owner_u_id)?;
+
+                dir.dir_touch(file_name, owner_u_id)?;
                 let mut dest_file = dir.dir_open(file_name)?;
                 dest_file.cp_from(f)
             }
@@ -116,7 +135,7 @@ impl VFile {
                         )));
                     }
                 };
-                let f = ZFile::open(entry);
+                let f = ZFile::open(entry)?;
                 Ok(f)
             }
             Self::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
@@ -126,46 +145,45 @@ impl VFile {
     }
 
     pub fn dir_rm(&mut self, name: &str) -> Result<(), FileSystemOperationError> {
-        match self{
-            Self::ZDir(d)=>{
-                d.del_item(name)
-            },
-            Self::ZFile(_)=>{
-                Err(FileSystemOperationError::NotDirError(format!("这里需要目录，但是却是文件")))
-            }
+        match self {
+            Self::ZDir(d) => d.del_item(name),
+            Self::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "这里需要目录，但是却是文件"
+            ))),
         }
     }
 
-    pub fn dir_user_check(&self,ackey:AccessKey)->Result<(),FileSystemOperationError>{
-        if ackey.u_id==0{
+    pub fn dir_user_check(&self, ackey: AccessKey) -> Result<(), FileSystemOperationError> {
+        if ackey.u_id == 0 {
             return Ok(());
         }
-           
-        match self{
-            Self::ZDir(d)=>{
-                println!("{:?}",ackey);
-                println!("{:?}",d.get_owner_id(&ackey.access_file_name));
-                let u_id=ackey.u_id;
+
+        match self {
+            Self::ZDir(d) => {
+                println!("{:?}", ackey);
+                println!("{:?}", d.get_owner_id(&ackey.access_file_name));
+                let u_id = ackey.u_id;
                 // match d.get_owner_id(&ackey.access_file_name)?{
                 //     u_id=>{Ok(())},
                 //     _=>{Err(FileSystemOperationError::PermissionError(format!("没有权限")))}
                 // }
-                if u_id==d.get_owner_id(&ackey.access_file_name)?{
+                if u_id == d.get_owner_id(&ackey.access_file_name)? {
                     Ok(())
-                }else{
-                    Err(FileSystemOperationError::PermissionError(format!("没有权限")))
+                } else {
+                    Err(FileSystemOperationError::PermissionError(format!(
+                        "没有权限"
+                    )))
                 }
-
-            },
-            Self::ZFile(_)=>{
+            }
+            Self::ZFile(_) => {
                 // Err(FileSystemOperationError::NotDirError(format!("这里需要目录，但是却是文件")))
                 let temp = get_ft()?;
-                 let ft = temp.lock(); 
+                let ft = temp.lock();
                 let mut ft = ft_unwrap(ft)?;
-                let a=ft.open(&ackey.parent_path)?;
+                let a = ft.open(&ackey.parent_path)?;
                 drop(ft);
                 let dir_result = a.as_ref().read();
-    
+
                 let dir_guard = match dir_result {
                     Ok(x) => x,
                     Err(_) => {
@@ -178,6 +196,30 @@ impl VFile {
                 dir_guard.dir_user_check(ackey)
                 // Ok(())
             }
+        }
+    }
+
+    pub fn dir_host_cp(
+        &mut self,
+        source_path: &str,
+        file_name: &str,
+        owner_u_id: u8,
+    ) -> Result<(), FileSystemOperationError> {
+        // touch(dest_path, file_name, owner_u_id)
+        match self {
+            VFile::ZDir(d) => d.host_cp(source_path, file_name, owner_u_id),
+            VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "这里需要目录，但是却是文件"
+            ))),
+        }
+    }
+
+    pub fn dir_ls_l(&self)->Result<String,FileSystemOperationError>{
+        match self{
+            VFile::ZDir(d)=>{d.dir_ls_l()},
+            VFile::ZFile(_) => Err(FileSystemOperationError::NotDirError(format!(
+                "这里需要目录，但是却是文件"
+            ))),
         }
     }
 }
@@ -247,7 +289,7 @@ impl RawRootFile {
         let ans = RawFile::open(addr)?;
         match ans.get_type() {
             FileType::File => {
-                let f = ZFile::open(addr);
+                let f = ZFile::open(addr)?;
                 return Ok(VFile::ZFile(f));
             }
             FileType::Dir => {
@@ -262,7 +304,7 @@ impl RawRootFile {
             Ok(addr) => addr,
             Err(e) => return Err(e),
         };
-        let ans = ZFile::open(addr);
+        let ans = ZFile::open(addr)?;
 
         Ok(VFile::ZFile(ans))
     }
