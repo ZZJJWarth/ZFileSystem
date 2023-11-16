@@ -31,8 +31,8 @@ pub struct SuperBlock {
     magic_num: u64,           //魔数
     first_init: bool,         //是否已经初始化
     user_manager_entry: u32,  //用户管理器的地址
-    bitmap: Option<Arc<Mutex<BlockBitmap>>>,
-    file_table: Option<Arc<Mutex<FileTable>>>,
+    bitmap: Option<Arc<Mutex<BlockBitmap>>>,    //位图临界资源
+    file_table: Option<Arc<Mutex<FileTable>>>,  //文件哈希表临界资源
 }
 
 impl SuperBlock {

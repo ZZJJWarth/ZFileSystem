@@ -27,3 +27,4 @@ pub fn cat(file_path: &str, ackey: AccessKey) -> Result<String, FileSystemOperat
     dir_guard.dir_user_check(ackey)?;   //对文件的访问权限进行检查，如何没有错误就继续执行，如果有错误将返回错误
     dir_guard.file_cat()        //返回文件cat函数产生的字符串
 }
+

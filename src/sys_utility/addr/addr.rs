@@ -131,8 +131,8 @@ impl From<Addr> for BlockAddr {
 }
 #[derive(Debug)]
 pub struct BlockRange {
-    start: BlockAddr,
-    end: BlockAddr,
+    start: BlockAddr,       //开始地址      
+    end: BlockAddr,         //结束地址
 }
 
 impl BlockRange {
@@ -140,7 +140,7 @@ impl BlockRange {
         BlockRange { start, end }
     }
 
-    pub fn iter(&self) -> BlockRangeIter {
+    pub fn iter(&self) -> BlockRangeIter {      //获得迭代器
         BlockRangeIter {
             current: self.start.clone(),
             end: self.end.clone(),

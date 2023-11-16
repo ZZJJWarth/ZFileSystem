@@ -56,11 +56,11 @@ impl ZDir {
     }
 
     ///通过一个BlockAddr打开一个ZDir
-    pub fn open(addr: BlockAddr) -> Result<Self, ()> {
+    pub fn open(addr: BlockAddr) -> Result<Self, FileSystemOperationError> {
         let mut f = RawFile::open(addr).unwrap();
         if (f.get_type() != super::raw_f::FileType::Dir) {
-            println!("this is not a dir!");
-            return Err(());
+            // println!("this is not a dir!");
+            return Err(FileSystemOperationError::NotDirError(format!("this is not a dir!")));
         }
         let mut buf: Vec<u8> = vec![];
         f.read(0, &mut buf, ZDirPack::PACK_SIZE).unwrap();
